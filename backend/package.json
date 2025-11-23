@@ -25,5 +25,7 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
-  }
+  },
+  "lastCommitDate": "2025-11-23",
+  "lastCommitMessage": "chore: project kickoff – init Node.js/Express/MongoDB dev environment"
 }
