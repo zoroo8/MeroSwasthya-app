@@ -33,3 +33,5 @@ app.use('/api/chat', require('./routes/chat'));
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Git commit [2025-11-24]: chore: study codebase – review routes/, controllers/, models/ structure
