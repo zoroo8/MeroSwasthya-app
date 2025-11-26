@@ -10,3 +10,5 @@ router.post('/users', auth, role('admin'), createUser);
 router.post('/hospitals', auth, role('admin'), createHospitalWithAdmin);
 
 module.exports = router;
+
+// Git commit [2025-11-26]: feat: scaffold admin.js route file and adminController.js with role protection
