@@ -110,3 +110,5 @@ module.exports = {
   createUser,
   createHospitalWithAdmin,
 };
+
+// Git commit [2025-11-27]: feat(admin): implement GET /api/admin/stats – return total user count from User collection
