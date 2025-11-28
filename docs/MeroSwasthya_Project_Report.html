@@ -1,0 +1,692 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MeroSwasthya Project Report</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 17mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #ffffff;
+      color: #111111;
+      font-family: "Segoe UI", Arial, sans-serif;
+      font-size: 11.2pt;
+      line-height: 1.55;
+    }
+
+    main {
+      max-width: 190mm;
+      margin: 0 auto;
+      padding: 18mm 0;
+    }
+
+    .cover {
+      min-height: 255mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 18mm;
+      text-align: left;
+    }
+
+    .cover h1 {
+      margin: 0;
+      font-size: 31pt;
+      line-height: 1.08;
+      font-weight: 800;
+    }
+
+    .cover p {
+      max-width: 150mm;
+      margin: 4mm 0 0;
+      font-size: 13pt;
+    }
+
+    .cover-details {
+      display: grid;
+      gap: 2mm;
+      margin-top: 8mm;
+      font-size: 11pt;
+    }
+
+    h1,
+    h2,
+    h3 {
+      color: #111111;
+      line-height: 1.25;
+    }
+
+    h2 {
+      margin: 10mm 0 3mm;
+      font-size: 18pt;
+      font-weight: 750;
+      break-after: avoid;
+    }
+
+    h3 {
+      margin: 6mm 0 2mm;
+      font-size: 13.5pt;
+      font-weight: 700;
+      break-after: avoid;
+    }
+
+    p {
+      margin: 0 0 3.2mm;
+    }
+
+    ul,
+    ol {
+      margin: 0 0 4mm 6mm;
+      padding: 0;
+    }
+
+    li {
+      margin-bottom: 2mm;
+    }
+
+    strong {
+      font-weight: 750;
+    }
+
+    code {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 9.5pt;
+      background: #f2f2f2;
+      padding: 0.3mm 0.8mm;
+      border-radius: 3px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 4mm 0;
+      font-size: 9.8pt;
+    }
+
+    th,
+    td {
+      border: 1px solid #777777;
+      padding: 2.5mm;
+      vertical-align: top;
+    }
+
+    th {
+      background: #eeeeee;
+      font-weight: 750;
+      text-align: left;
+    }
+
+    tr {
+      break-inside: avoid;
+    }
+
+    .toc {
+      columns: 2;
+      column-gap: 12mm;
+      margin-top: 3mm;
+    }
+
+    .toc a {
+      display: block;
+      color: #111111;
+      text-decoration: none;
+      margin-bottom: 2mm;
+    }
+
+    .note {
+      font-size: 10pt;
+      color: #333333;
+    }
+
+    .page-break {
+      break-before: page;
+    }
+
+    .conclusion {
+      break-before: page;
+    }
+
+    @media print {
+      main {
+        max-width: none;
+        margin: 0;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="cover">
+      <div>
+        <h1>MeroSwasthya Hospital Management System</h1>
+        <p>Project report for a role-based healthcare web application that connects patients, doctors, hospitals, and administrators in one platform.</p>
+        <div class="cover-details">
+          <div><strong>Report Date:</strong> May 12, 2026</div>
+          <div><strong>Project Type:</strong> MERN-style web application</div>
+          <div><strong>Prepared For:</strong> Project Manager Review</div>
+          <div><strong>Status:</strong> Functional development build verified</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page-break">
+      <h2>Table of Contents</h2>
+      <div class="toc">
+        <a href="#summary">1. Executive Summary</a>
+        <a href="#objectives">2. Objectives and Scope</a>
+        <a href="#stack">3. Technology Stack</a>
+        <a href="#architecture">4. Architecture Overview</a>
+        <a href="#roles">5. User Roles</a>
+        <a href="#features">6. Main Features</a>
+        <a href="#frontend">7. Frontend Details</a>
+        <a href="#backend">8. Backend Details</a>
+        <a href="#database">9. Database Design</a>
+        <a href="#api">10. API Overview</a>
+        <a href="#security">11. Security Notes</a>
+        <a href="#setup">12. Setup and Configuration</a>
+        <a href="#verification">13. Verification Status</a>
+        <a href="#future">14. Future Work</a>
+        <a href="#conclusion">15. Conclusion</a>
+      </div>
+    </section>
+
+    <section id="summary">
+      <h2>1. Executive Summary</h2>
+      <p>
+        MeroSwasthya is a Hospital Management System built to make healthcare coordination easier for patients, doctors, hospitals, and administrators. Instead of keeping appointment booking, doctor availability, medical reports, and communication in separate places, the application brings these workflows into one web platform.
+      </p>
+      <p>
+        The project has a React frontend and a Node.js/Express backend connected to MongoDB. It includes role-based dashboards, OTP-based account verification, hospital and doctor management, queue-aware appointment booking, medical report generation, visit history, profile images, and real-time chat between patients and doctors.
+      </p>
+      <p>
+        In simple terms, the system helps patients find care, helps doctors manage appointments and reports, helps hospitals coordinate doctors and schedules, and helps admins keep the platform organized.
+      </p>
+
+      <h3>Key Points</h3>
+      <ul>
+        <li><strong>Purpose:</strong> Provide a single web-based workspace for common hospital and patient service workflows.</li>
+        <li><strong>Main Users:</strong> Patients, doctors, hospital users, and system administrators.</li>
+        <li><strong>Core Benefit:</strong> Reduces manual coordination by connecting bookings, doctor availability, chat, and reports.</li>
+        <li><strong>Current State:</strong> The frontend builds successfully and the major workflows are implemented in the codebase.</li>
+        <li><strong>Next Priority:</strong> Add automated testing, production security hardening, and deployment configuration before production use.</li>
+      </ul>
+    </section>
+
+    <section id="objectives">
+      <h2>2. Objectives and Scope</h2>
+      <p>
+        The main objective of MeroSwasthya is to provide a practical healthcare management platform that can support everyday hospital operations while staying simple enough for patients to use.
+      </p>
+
+      <h3>Objectives</h3>
+      <ul>
+        <li>Allow users to register, verify their account, and sign in securely.</li>
+        <li>Give each user role a dashboard focused on their actual work.</li>
+        <li>Allow hospitals to maintain profiles and manage doctor availability.</li>
+        <li>Allow patients to search hospitals, choose doctors, and book appointments.</li>
+        <li>Allow doctors and hospitals to create reports for completed or confirmed visits.</li>
+        <li>Allow patients and doctors to communicate through real-time chat.</li>
+        <li>Maintain visit history so patients can open reports from the correct appointment.</li>
+      </ul>
+
+      <h3>Current Scope</h3>
+      <ul>
+        <li>Authentication, OTP verification, password reset, and profile image upload.</li>
+        <li>Admin dashboard for users, hospitals, doctor approvals, and reports.</li>
+        <li>Hospital dashboard for hospital profile, linked doctors, availability, appointments, and reports.</li>
+        <li>Doctor dashboard for profile, appointment status, chat, and medical reports.</li>
+        <li>Patient dashboard for profile, hospital search, doctor selection, booking, chat, visit history, and reports.</li>
+        <li>Landing page with hospital image, sectioned content, testimonials, and call-to-action.</li>
+      </ul>
+    </section>
+
+    <section id="stack">
+      <h2>3. Technology Stack</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Area</th>
+            <th>Technology</th>
+            <th>Use in Project</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Frontend</td>
+            <td>React 18, Vite, React Router</td>
+            <td>Single page application, routing, dashboards, landing page, and build process.</td>
+          </tr>
+          <tr>
+            <td>Backend</td>
+            <td>Node.js, Express 5</td>
+            <td>REST API, route handling, middleware, and server setup.</td>
+          </tr>
+          <tr>
+            <td>Database</td>
+            <td>MongoDB, Mongoose</td>
+            <td>Schema-based document storage for users, appointments, hospitals, doctors, reports, and messages.</td>
+          </tr>
+          <tr>
+            <td>Authentication</td>
+            <td>JWT, bcryptjs</td>
+            <td>Token-based login and hashed password storage.</td>
+          </tr>
+          <tr>
+            <td>Email</td>
+            <td>Nodemailer</td>
+            <td>OTP verification and password reset email delivery.</td>
+          </tr>
+          <tr>
+            <td>Realtime</td>
+            <td>Socket.IO</td>
+            <td>Live chat between patients and doctors.</td>
+          </tr>
+          <tr>
+            <td>Uploads</td>
+            <td>Multer</td>
+            <td>Profile image upload with type and size validation.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="architecture">
+      <h2>4. Architecture Overview</h2>
+      <p>
+        The project follows a client-server structure. The frontend runs as a React application and communicates with the backend using REST API requests. The backend is responsible for authentication, validation, database operations, role permissions, and realtime chat events.
+      </p>
+      <p>
+        MongoDB is used as the main database. Each major business object has its own Mongoose model. The backend keeps route definitions, controllers, services, middleware, and models separate, which makes the code easier to understand and extend.
+      </p>
+
+      <h3>Architecture Flow</h3>
+      <ol>
+        <li>A user opens the landing page and chooses Login or Get Started.</li>
+        <li>The user registers or logs in through the frontend.</li>
+        <li>The backend validates credentials and returns a JWT token after successful login or OTP verification.</li>
+        <li>The frontend stores the token and uses it for protected API requests.</li>
+        <li>The backend checks the token and role before allowing protected actions.</li>
+        <li>MongoDB stores account, profile, appointment, report, hospital, doctor, and chat data.</li>
+        <li>Socket.IO handles realtime chat using the same JWT identity.</li>
+      </ol>
+    </section>
+
+    <section id="roles">
+      <h2>5. User Roles</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Role</th>
+            <th>Description</th>
+            <th>Main Responsibilities</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Patient</td>
+            <td>Person looking for care and appointments.</td>
+            <td>Maintain profile, search hospitals, book doctors, chat, and view reports.</td>
+          </tr>
+          <tr>
+            <td>Doctor</td>
+            <td>Clinical user who handles appointments and reports.</td>
+            <td>Create profile, manage appointment status, chat with patients, and create reports.</td>
+          </tr>
+          <tr>
+            <td>Hospital</td>
+            <td>Hospital-side user managing hospital operations.</td>
+            <td>Maintain hospital profile, link doctors, set availability, view appointments, and create reports.</td>
+          </tr>
+          <tr>
+            <td>Admin</td>
+            <td>System-level user responsible for platform control.</td>
+            <td>Create users, create hospitals, approve doctors, view statistics, and review reports.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="features">
+      <h2>6. Main Features</h2>
+
+      <h3>Authentication</h3>
+      <ul>
+        <li>Users can register with name, email, password, role, and optional profile image.</li>
+        <li>OTP is sent by email for account verification.</li>
+        <li>Users must verify OTP before login.</li>
+        <li>JWT tokens are used to access protected routes.</li>
+        <li>Password reset is available through email OTP.</li>
+      </ul>
+
+      <h3>Admin Features</h3>
+      <ul>
+        <li>View system counts for users, patients, doctors, and hospitals.</li>
+        <li>Create users for different roles.</li>
+        <li>Create hospitals and connect them to hospital-admin users.</li>
+        <li>Approve doctor profiles before doctors can receive bookings.</li>
+        <li>Review reports across the system.</li>
+      </ul>
+
+      <h3>Hospital Features</h3>
+      <ul>
+        <li>Create and update hospital profile details.</li>
+        <li>Search registered doctors and link them to a hospital.</li>
+        <li>Set doctor availability using dates and patient limits.</li>
+        <li>View appointments booked under the hospital.</li>
+        <li>Create medical reports for confirmed or completed appointments.</li>
+      </ul>
+
+      <h3>Doctor Features</h3>
+      <ul>
+        <li>Create and update clinical profile details.</li>
+        <li>Wait for admin approval before becoming bookable.</li>
+        <li>View assigned appointments.</li>
+        <li>Update appointment status such as confirmed, completed, cancelled, or no-show.</li>
+        <li>Create and update patient medical reports.</li>
+        <li>Reply to patient chats after a patient starts the conversation.</li>
+      </ul>
+
+      <h3>Patient Features</h3>
+      <ul>
+        <li>Maintain personal health profile, blood group, allergies, and emergency contact.</li>
+        <li>Search hospitals and view hospital cards with images.</li>
+        <li>Open hospital details and see available doctors.</li>
+        <li>Book appointments based on available dates.</li>
+        <li>Track appointment queue/token numbers and status.</li>
+        <li>Start chat with doctors.</li>
+        <li>View visit history and open medical reports from the related visit.</li>
+      </ul>
+    </section>
+
+    <section id="frontend">
+      <h2>7. Frontend Details</h2>
+      <p>
+        The frontend is designed as a role-aware single page application. It has public pages for landing, login, registration, and OTP verification. After login, the protected dashboard renders different content depending on the user's role.
+      </p>
+
+      <h3>Frontend Pages</h3>
+      <ul>
+        <li><strong>Landing Page:</strong> Public first page with hospital hero image, feature sections, testimonials, and Get Started button.</li>
+        <li><strong>Login Page:</strong> Allows verified users to sign in.</li>
+        <li><strong>Register Page:</strong> Allows new users to create an account.</li>
+        <li><strong>Verify OTP Page:</strong> Allows users to verify their email and resend OTP.</li>
+        <li><strong>Dashboard Home:</strong> Chooses the correct dashboard based on role.</li>
+        <li><strong>Patient Dashboard:</strong> Handles patient profile, hospital search, booking, chat, and history.</li>
+        <li><strong>Doctor Dashboard:</strong> Handles profile, appointments, chat, and reports.</li>
+        <li><strong>Hospital Dashboard:</strong> Handles hospital profile, doctors, appointments, and reports.</li>
+        <li><strong>Admin Dashboard:</strong> Handles stats, users, hospitals, approvals, and system reports.</li>
+      </ul>
+
+      <h3>UI Improvements Completed</h3>
+      <ul>
+        <li>Added a clean landing page with hospital hero image.</li>
+        <li>Divided landing page into clear sections.</li>
+        <li>Added testimonials with profile images.</li>
+        <li>Added clear Get Started CTA buttons.</li>
+        <li>Removed raw JSON response panels from dashboards.</li>
+        <li>Improved patient history so reports open from visit items.</li>
+        <li>Added doctor and patient images in search and chat where available.</li>
+        <li>Reduced hospital search card image size for cleaner browsing.</li>
+      </ul>
+    </section>
+
+    <section id="backend">
+      <h2>8. Backend Details</h2>
+      <p>
+        The backend is organized around route groups and controllers. Each route group handles one domain of the application. Middleware checks authentication and roles before protected controller logic runs.
+      </p>
+
+      <h3>Backend Structure</h3>
+      <ul>
+        <li><code>server.js</code>: Starts Express, Socket.IO, middleware, static uploads, and API routes.</li>
+        <li><code>db.js</code>: Connects the backend to MongoDB.</li>
+        <li><code>routes/</code>: Defines endpoint paths and attaches middleware.</li>
+        <li><code>controllers/</code>: Handles request logic and responses.</li>
+        <li><code>models/</code>: Defines Mongoose schemas.</li>
+        <li><code>middleware/</code>: Handles auth, role checks, and uploads.</li>
+        <li><code>services/</code>: Contains shared chat business logic.</li>
+        <li><code>sockets/</code>: Handles Socket.IO chat events.</li>
+        <li><code>utils/</code>: Contains email and dashboard helper logic.</li>
+      </ul>
+    </section>
+
+    <section id="database">
+      <h2>9. Database Design</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Model</th>
+            <th>Purpose</th>
+            <th>Important Fields</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>User</td>
+            <td>Stores login and role information.</td>
+            <td>name, email, password, role, isVerified, OTP fields, phone, profileImage.</td>
+          </tr>
+          <tr>
+            <td>PatientProfile</td>
+            <td>Stores patient health details.</td>
+            <td>user, dateOfBirth, gender, bloodGroup, address, emergency contact, allergies, chronic conditions.</td>
+          </tr>
+          <tr>
+            <td>Doctor</td>
+            <td>Stores doctor professional profile.</td>
+            <td>user, specialty, licenseNumber, experienceYears, consultationFee, maxDailyBookings, isApproved.</td>
+          </tr>
+          <tr>
+            <td>Hospital</td>
+            <td>Stores hospital information.</td>
+            <td>name, address, phone, email, bannerImage, adminUser, isActive.</td>
+          </tr>
+          <tr>
+            <td>DoctorHospital</td>
+            <td>Links doctors to hospitals.</td>
+            <td>doctor, hospital, availableDates, availabilitySlots, maxDailyBookings, isActive.</td>
+          </tr>
+          <tr>
+            <td>Appointment</td>
+            <td>Stores appointment and queue data.</td>
+            <td>patientUser, doctor, hospitalId, scheduledAt, queueDate, queueNumber, reason, status.</td>
+          </tr>
+          <tr>
+            <td>MedicalReport</td>
+            <td>Stores medical report for an appointment.</td>
+            <td>appointment, patientUser, doctor, hospitalId, diagnosis, prescription, tests, followUpDate, notes.</td>
+          </tr>
+          <tr>
+            <td>ChatMessage</td>
+            <td>Stores patient-doctor chat messages.</td>
+            <td>patientUser, doctor, senderUser, message, timestamps.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="api">
+      <h2>10. API Overview</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Route Group</th>
+            <th>Purpose</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>/api/auth</code></td>
+            <td>Registration, login, OTP verification, password reset, current user, and profile image APIs.</td>
+          </tr>
+          <tr>
+            <td><code>/api/admin</code></td>
+            <td>System stats, user creation, and hospital creation by admin.</td>
+          </tr>
+          <tr>
+            <td><code>/api/doctor</code></td>
+            <td>Doctor listing, doctor profile, pending approvals, and doctor approval.</td>
+          </tr>
+          <tr>
+            <td><code>/api/hospital</code></td>
+            <td>Hospital listing, hospital profile, doctor candidates, doctor linking, and availability.</td>
+          </tr>
+          <tr>
+            <td><code>/api/patient</code></td>
+            <td>Patient profile and patient visit history.</td>
+          </tr>
+          <tr>
+            <td><code>/api/appointment</code></td>
+            <td>Appointment booking, appointment listing, and appointment status updates.</td>
+          </tr>
+          <tr>
+            <td><code>/api/report</code></td>
+            <td>Medical report creation, listing, and detail view.</td>
+          </tr>
+          <tr>
+            <td><code>/api/chat</code></td>
+            <td>Chat conversations, chat messages, and message sending.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="security">
+      <h2>11. Security Notes</h2>
+      <h3>Current Security Work</h3>
+      <ul>
+        <li>Passwords are hashed using bcrypt.</li>
+        <li>Protected endpoints require JWT authentication.</li>
+        <li>Role middleware restricts access to role-specific routes.</li>
+        <li>Socket.IO checks JWT before allowing chat events.</li>
+        <li>Report access checks patient, doctor, hospital, or admin ownership.</li>
+        <li>Profile image uploads are limited by file type and size.</li>
+      </ul>
+
+      <h3>Production Security Recommendations</h3>
+      <ul>
+        <li>Restrict CORS to the real frontend domain.</li>
+        <li>Hash OTP values before saving them in the database.</li>
+        <li>Use cryptographically secure OTP generation.</li>
+        <li>Add rate limiting for login, OTP, reset password, and chat actions.</li>
+        <li>Add stricter request validation for all incoming payloads.</li>
+        <li>Add audit logs for admin approval, report creation, and profile changes.</li>
+      </ul>
+    </section>
+
+    <section id="setup">
+      <h2>12. Setup and Configuration</h2>
+      <h3>Backend Setup</h3>
+      <ol>
+        <li>Open the <code>backend</code> directory.</li>
+        <li>Run <code>npm install</code>.</li>
+        <li>Create a <code>.env</code> file.</li>
+        <li>Run <code>npm run dev</code> for development.</li>
+        <li>Run <code>npm start</code> for production-style start.</li>
+      </ol>
+
+      <h3>Backend Environment Variables</h3>
+      <ul>
+        <li><code>MONGO_URI</code>: MongoDB connection string.</li>
+        <li><code>JWT_SECRET</code>: Secret key used for JWT signing.</li>
+        <li><code>EMAIL_USER</code>: Email account used to send OTP.</li>
+        <li><code>EMAIL_PASS</code>: Email account password or app password.</li>
+        <li><code>EMAIL_FROM</code>: Optional email sender address.</li>
+        <li><code>ADMIN_SECRET</code>: Secret used for admin registration.</li>
+        <li><code>PORT</code>: Optional backend port, default is 5000.</li>
+      </ul>
+
+      <h3>Frontend Setup</h3>
+      <ol>
+        <li>Open the <code>frontend</code> directory.</li>
+        <li>Run <code>npm install</code>.</li>
+        <li>Run <code>npm run dev</code> for development.</li>
+        <li>Run <code>npm run build</code> to create a production build.</li>
+      </ol>
+
+      <p>The frontend API URL defaults to <code>http://localhost:5000/api</code>. It can be changed with <code>VITE_API_BASE_URL</code>.</p>
+    </section>
+
+    <section id="verification">
+      <h2>13. Verification Status</h2>
+      <ul>
+        <li>The frontend production build was tested with <code>npm run build</code>.</li>
+        <li>The build completed successfully.</li>
+        <li>Backend syntax checks were performed during development review for changed backend files.</li>
+        <li>The backend test script is currently a placeholder and should be replaced with real tests.</li>
+        <li>Full end-to-end testing requires a running MongoDB database and valid email credentials.</li>
+      </ul>
+    </section>
+
+    <section id="future">
+      <h2>14. Future Work</h2>
+      <p>
+        The current system is a strong base for demonstration and continued development. Before using it in a production environment, the following work should be prioritized.
+      </p>
+      <ul>
+        <li>
+          <strong>Add automated testing.</strong>
+          The project should include unit tests for service logic, controller tests for important workflows, and integration tests for login, role access, appointment booking, report creation, and chat. This will make future changes safer and help catch regressions early.
+        </li>
+        <li>
+          <strong>Improve production security.</strong>
+          CORS should be restricted, OTPs should be generated securely and stored as hashes, rate limiting should be added, and all request payloads should be validated. These changes are important because the system handles sensitive healthcare and user data.
+        </li>
+        <li>
+          <strong>Add deployment and environment documentation.</strong>
+          The project needs deployment instructions for frontend hosting, backend hosting, environment variables, MongoDB setup, file storage, and email configuration. This will make it easier for another team member or DevOps person to deploy the application reliably.
+        </li>
+        <li>
+          <strong>Enhance appointment and notification workflows.</strong>
+          Future versions can include appointment cancellation requests, reminders, email/SMS notifications, calendar views, and doctor schedule management. These improvements would make the platform more useful in real hospital operations.
+        </li>
+        <li>
+          <strong>Move uploads to cloud storage.</strong>
+          Profile images and future report attachments are currently stored locally on the backend server. For production, cloud or object storage should be used so files remain available across deployments, scaling, backups, and server restarts.
+        </li>
+      </ul>
+    </section>
+
+    <section id="conclusion" class="conclusion">
+      <h2>15. Conclusion</h2>
+      <p>
+        MeroSwasthya is a practical healthcare management project that brings several important hospital workflows into one place. The application is not just a basic login-and-dashboard system; it already includes meaningful role-based behavior for patients, doctors, hospitals, and administrators. Each role has a clear purpose inside the platform, which makes the system feel closer to a real-world hospital workflow than a simple demo application.
+      </p>
+      <p>
+        From the patient side, the system focuses on making care easier to access. Patients can create their profile, search hospitals, view hospital doctors, book an appointment, chat with a doctor, and later view reports from their visit history. This is useful because patients often lose track of where their appointments, reports, and doctor communication are stored. In this project, those details are connected through one account and one dashboard.
+      </p>
+      <p>
+        From the doctor side, the platform supports the daily work of handling appointments and medical documentation. A doctor can create a professional profile, wait for approval, view assigned appointments, update appointment status, chat with patients, and create medical reports. The approval step is important because it gives administrators control over which doctors become active in the system.
+      </p>
+      <p>
+        From the hospital side, the system provides tools to manage hospital information, connect doctors, set date-based availability, and view hospital appointments. The availability and queue logic is one of the stronger parts of the system because it helps avoid unlimited bookings and gives patients a queue/token number. This makes the booking flow more organized and closer to how many hospitals actually manage patient visits.
+      </p>
+      <p>
+        From the admin side, the project includes system-level control for creating users, creating hospitals, approving doctors, viewing reports, and checking basic statistics. This gives the application a management layer that can support future growth. As more users and hospitals are added, the admin role becomes important for keeping the platform clean and controlled.
+      </p>
+      <p>
+        Technically, the project is structured in a maintainable way. The backend separates routes, controllers, services, models, middleware, sockets, and utilities. The frontend separates pages, dashboards, common components, API helpers, context, and styling. This structure will help future developers understand where to add new features. The use of React, Express, MongoDB, JWT, Multer, Nodemailer, and Socket.IO is appropriate for the current scope.
+      </p>
+      <p>
+        The recent UI improvements also make the project easier to present. The landing page now gives the application a proper first impression, the dashboards are cleaner, raw JSON response panels have been removed, hospital and doctor images improve the visual experience, and chat now shows user images. These changes make the application feel more complete and more understandable for non-technical reviewers.
+      </p>
+      <p>
+        At the same time, the project should not be considered production-ready yet. Important production work remains, especially automated tests, stricter security, better validation, deployment configuration, cloud file storage, and operational monitoring. These are normal next steps for moving a functional development project toward a reliable production system.
+      </p>
+      <p>
+        Overall, MeroSwasthya is a strong foundation for a hospital management system. It demonstrates the main workflows clearly and gives enough structure for continued development. With testing, security improvements, and deployment preparation, it can grow into a more complete healthcare platform that supports real patient, doctor, hospital, and administrative operations.
+      </p>
+    </section>
+  </main>
+</body>
+</html>
