@@ -112,3 +112,5 @@ module.exports = {
 };
 
 // Git commit [2025-11-27]: feat(admin): implement GET /api/admin/stats – return total user count from User collection
+
+// Git commit [2025-12-01]: feat(admin): enhance GET /api/admin/stats – parallel Promise.all queries across 4 collections
