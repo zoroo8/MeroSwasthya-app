@@ -118,3 +118,5 @@ module.exports = {
 // Git commit [2025-12-02]: feat(admin): implement GET /api/admin/users – list users with name/email search and role filter
 
 // Git commit [2025-12-03]: feat(admin): implement POST /api/admin/users – admin-side user creation with role assignment
+
+// Git commit [2025-12-04]: test(admin): test all user endpoints – valid input, invalid token, wrong-role scenarios
