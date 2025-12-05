@@ -120,3 +120,5 @@ module.exports = {
 // Git commit [2025-12-03]: feat(admin): implement POST /api/admin/users – admin-side user creation with role assignment
 
 // Git commit [2025-12-04]: test(admin): test all user endpoints – valid input, invalid token, wrong-role scenarios
+
+// Git commit [2025-12-05]: fix(admin): add duplicate email uniqueness check before user insert
