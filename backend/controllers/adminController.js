@@ -124,3 +124,5 @@ module.exports = {
 // Git commit [2025-12-05]: fix(admin): add duplicate email uniqueness check before user insert
 
 // Git commit [2025-12-08]: feat(admin): implement POST /api/admin/hospital – create hospital and assign hospitalAdmin role
+
+// Git commit [2025-12-09]: feat(admin): add role assignment logic – update User.role to hospitalAdmin on hospital creation
