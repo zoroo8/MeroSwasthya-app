@@ -126,3 +126,5 @@ module.exports = {
 // Git commit [2025-12-08]: feat(admin): implement POST /api/admin/hospital – create hospital and assign hospitalAdmin role
 
 // Git commit [2025-12-09]: feat(admin): add role assignment logic – update User.role to hospitalAdmin on hospital creation
+
+// Git commit [2025-12-10]: feat(admin): implement GET /api/admin/hospitals – list hospitals with name/speciality filters
