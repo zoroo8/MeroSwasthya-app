@@ -40,3 +40,5 @@ const hospitalSchema = new mongoose.Schema(
 module.exports = mongoose.model('Hospital', hospitalSchema);
 
 // Git commit [2025-12-07]: chore: review Hospital.js – plan admin hospital creation flow
+
+// Git commit [2025-12-11]: chore: coordinate with Ayush – verify hospital model field compatibility
