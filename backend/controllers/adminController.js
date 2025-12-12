@@ -128,3 +128,5 @@ module.exports = {
 // Git commit [2025-12-09]: feat(admin): add role assignment logic – update User.role to hospitalAdmin on hospital creation
 
 // Git commit [2025-12-10]: feat(admin): implement GET /api/admin/hospitals – list hospitals with name/speciality filters
+
+// Git commit [2025-12-12]: test(admin): test hospital endpoints – valid, wrong role, missing fields, invalid user ID
