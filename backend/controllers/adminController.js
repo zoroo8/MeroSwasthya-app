@@ -130,3 +130,5 @@ module.exports = {
 // Git commit [2025-12-10]: feat(admin): implement GET /api/admin/hospitals – list hospitals with name/speciality filters
 
 // Git commit [2025-12-12]: test(admin): test hospital endpoints – valid, wrong role, missing fields, invalid user ID
+
+// Git commit [2025-12-14]: fix(admin): add user existence validation to hospital creation before role assignment
