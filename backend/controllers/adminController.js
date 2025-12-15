@@ -132,3 +132,5 @@ module.exports = {
 // Git commit [2025-12-12]: test(admin): test hospital endpoints – valid, wrong role, missing fields, invalid user ID
 
 // Git commit [2025-12-14]: fix(admin): add user existence validation to hospital creation before role assignment
+
+// Git commit [2025-12-15]: feat(admin): implement PATCH /api/admin/users/:id/status – activate/deactivate user account
