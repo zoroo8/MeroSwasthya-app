@@ -134,3 +134,5 @@ module.exports = {
 // Git commit [2025-12-14]: fix(admin): add user existence validation to hospital creation before role assignment
 
 // Git commit [2025-12-15]: feat(admin): implement PATCH /api/admin/users/:id/status – activate/deactivate user account
+
+// Git commit [2025-12-16]: feat(admin): implement GET /api/admin/doctors – profiles with approval status and hospital count
