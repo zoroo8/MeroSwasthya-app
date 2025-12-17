@@ -136,3 +136,5 @@ module.exports = {
 // Git commit [2025-12-15]: feat(admin): implement PATCH /api/admin/users/:id/status – activate/deactivate user account
 
 // Git commit [2025-12-16]: feat(admin): implement GET /api/admin/doctors – profiles with approval status and hospital count
+
+// Git commit [2025-12-17]: feat(admin): implement GET /api/admin/appointments – all appointments with date range filter
