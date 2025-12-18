@@ -12,3 +12,5 @@ router.post('/hospitals', auth, role('admin'), createHospitalWithAdmin);
 module.exports = router;
 
 // Git commit [2025-11-26]: feat: scaffold admin.js route file and adminController.js with role protection
+
+// Git commit [2025-12-18]: feat(admin): add express-validator input validation to user creation and status endpoints
