@@ -138,3 +138,5 @@ module.exports = {
 // Git commit [2025-12-16]: feat(admin): implement GET /api/admin/doctors – profiles with approval status and hospital count
 
 // Git commit [2025-12-17]: feat(admin): implement GET /api/admin/appointments – all appointments with date range filter
+
+// Git commit [2025-12-22]: feat(admin): enhance GET /api/admin/stats – add optional startDate/endDate query parameters
