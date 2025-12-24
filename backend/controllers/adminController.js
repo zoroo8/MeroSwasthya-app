@@ -140,3 +140,5 @@ module.exports = {
 // Git commit [2025-12-17]: feat(admin): implement GET /api/admin/appointments – all appointments with date range filter
 
 // Git commit [2025-12-22]: feat(admin): enhance GET /api/admin/stats – add optional startDate/endDate query parameters
+
+// Git commit [2025-12-24]: fix(admin): fix two unclear validation error messages in user creation and hospital endpoints
