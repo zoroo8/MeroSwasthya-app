@@ -10,3 +10,5 @@
 - **[2025-12-19]**: docs: share admin module progress in team meeting – role assignment design and appointment schema
 
 - **[2025-12-21]**: chore: write remaining task checklist – date-filtered stats and validation message testing
+
+- **[2025-12-26]**: docs: update admin endpoint docs – date filter params, validation error examples, audit log design
