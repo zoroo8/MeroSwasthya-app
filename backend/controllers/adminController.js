@@ -146,3 +146,5 @@ module.exports = {
 // Git commit [2025-12-29]: feat(admin): implement PATCH /api/admin/hospital/:id/reassign – reassign hospitalAdmin role
 
 // Git commit [2025-12-31]: refactor(admin): standardise all admin API responses to { success, message, data } shape
+
+// Git commit [2026-01-02]: perf(admin): apply MongoDB .select() field projection to stats and user listing endpoints
