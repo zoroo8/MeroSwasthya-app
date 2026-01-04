@@ -148,3 +148,5 @@ module.exports = {
 // Git commit [2025-12-31]: refactor(admin): standardise all admin API responses to { success, message, data } shape
 
 // Git commit [2026-01-02]: perf(admin): apply MongoDB .select() field projection to stats and user listing endpoints
+
+// Git commit [2026-01-04]: perf(admin): apply .select() field projection to all remaining admin GET endpoints
