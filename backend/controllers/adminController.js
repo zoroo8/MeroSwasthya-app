@@ -150,3 +150,5 @@ module.exports = {
 // Git commit [2026-01-02]: perf(admin): apply MongoDB .select() field projection to stats and user listing endpoints
 
 // Git commit [2026-01-04]: perf(admin): apply .select() field projection to all remaining admin GET endpoints
+
+// Git commit [2026-01-06]: feat(admin): implement GET /api/admin/patients – patient count and 5 most recent registrations
