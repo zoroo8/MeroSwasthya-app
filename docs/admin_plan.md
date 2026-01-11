@@ -14,3 +14,5 @@
 - **[2025-12-26]**: docs: update admin endpoint docs – date filter params, validation error examples, audit log design
 
 - **[2026-01-09]**: docs: write integration test result summary – RBAC constant bug and resolution
+
+- **[2026-01-11]**: chore: review work division PDF – confirm admin appointment reporting as remaining deliverable
