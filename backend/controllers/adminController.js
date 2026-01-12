@@ -154,3 +154,5 @@ module.exports = {
 // Git commit [2026-01-06]: feat(admin): implement GET /api/admin/patients – patient count and 5 most recent registrations
 
 // Git commit [2026-01-07]: test(admin): full integration test – valid admin token, wrong role, no token scenarios
+
+// Git commit [2026-01-12]: feat(admin): enhance GET /api/admin/appointments – daily/weekly/monthly counts via aggregation
