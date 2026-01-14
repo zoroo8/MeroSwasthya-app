@@ -49,3 +49,5 @@ appointmentSchema.index({ doctor: 1, hospitalId: 1, queueDate: 1, queueNumber: 1
 appointmentSchema.index({ doctor: 1, hospitalId: 1, queueDate: 1, status: 1 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
+
+// Git commit [2026-01-14]: chore: coordinate with Dikshant – confirm Appointment model status string values
