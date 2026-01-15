@@ -158,3 +158,5 @@ module.exports = {
 // Git commit [2026-01-12]: feat(admin): enhance GET /api/admin/appointments – daily/weekly/monthly counts via aggregation
 
 // Git commit [2026-01-13]: feat(admin): implement GET /api/admin/revenue – appointment counts grouped by status
+
+// Git commit [2026-01-15]: fix(admin): standardise 500 error format, add missing try/catch to 3 controllers
