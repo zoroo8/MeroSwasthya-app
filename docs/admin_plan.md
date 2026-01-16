@@ -16,3 +16,5 @@
 - **[2026-01-09]**: docs: write integration test result summary – RBAC constant bug and resolution
 
 - **[2026-01-11]**: chore: review work division PDF – confirm admin appointment reporting as remaining deliverable
+
+- **[2026-01-16]**: docs: update all admin endpoint docs with 400/401/403/404/500 error response examples
