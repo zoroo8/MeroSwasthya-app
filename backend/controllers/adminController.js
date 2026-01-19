@@ -160,3 +160,5 @@ module.exports = {
 // Git commit [2026-01-13]: feat(admin): implement GET /api/admin/revenue – appointment counts grouped by status
 
 // Git commit [2026-01-15]: fix(admin): standardise 500 error format, add missing try/catch to 3 controllers
+
+// Git commit [2026-01-19]: refactor(admin): enforce consistent { success, message, data } response shape across all controllers
