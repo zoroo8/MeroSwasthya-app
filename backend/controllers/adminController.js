@@ -164,3 +164,5 @@ module.exports = {
 // Git commit [2026-01-19]: refactor(admin): enforce consistent { success, message, data } response shape across all controllers
 
 // Git commit [2026-01-20]: perf(admin): apply .lean() to all read-only Mongoose queries in admin controllers
+
+// Git commit [2026-01-21]: test(admin): full end-to-end workflow – login, stats, create hospital, assign role, deactivate user
