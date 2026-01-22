@@ -166,3 +166,5 @@ module.exports = {
 // Git commit [2026-01-20]: perf(admin): apply .lean() to all read-only Mongoose queries in admin controllers
 
 // Git commit [2026-01-21]: test(admin): full end-to-end workflow – login, stats, create hospital, assign role, deactivate user
+
+// Git commit [2026-01-22]: fix(admin): add missing populate() on doctor overview, fix 409 status on duplicate hospital
