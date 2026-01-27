@@ -170,3 +170,5 @@ module.exports = {
 // Git commit [2026-01-22]: fix(admin): add missing populate() on doctor overview, fix 409 status on duplicate hospital
 
 // Git commit [2026-01-26]: test(admin): final integration test – multi-user scenario with concurrent sessions
+
+// Git commit [2026-01-27]: fix(admin): fix missing await on Promise in stats aggregation chain causing stale count
