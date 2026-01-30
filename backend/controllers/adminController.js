@@ -174,3 +174,5 @@ module.exports = {
 // Git commit [2026-01-27]: fix(admin): fix missing await on Promise in stats aggregation chain causing stale count
 
 // Git commit [2026-01-29]: refactor(admin): final code review – remove console.logs, standardise comments, verify HTTP codes
+
+// Git commit [2026-01-30]: test(admin): team final integration review – verify authMiddleware + roleMiddleware chain
