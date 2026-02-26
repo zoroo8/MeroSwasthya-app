@@ -1,6 +1,6 @@
-const nodemailer = require('nodemailer');
+import nodemailer from 'nodemailer';
 
-const isEmailServiceConfigured = () => {
+export const isEmailServiceConfigured = () => {
   return Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 };
 
@@ -36,7 +36,7 @@ const getMessageByPurpose = (purpose, otp, name) => {
   };
 };
 
-const sendOtpEmail = async ({ to, otp, purpose = 'verification', name }) => {
+export const sendOtpEmail = async ({ to, otp, purpose = 'verification', name }) => {
   if (!isEmailServiceConfigured()) {
     throw new Error('Email service is not configured');
   }
@@ -52,9 +52,4 @@ const sendOtpEmail = async ({ to, otp, purpose = 'verification', name }) => {
     text: message.text,
     html: message.html,
   });
-};
-
-module.exports = {
-  isEmailServiceConfigured,
-  sendOtpEmail,
 };
