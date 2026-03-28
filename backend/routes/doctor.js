@@ -14,6 +14,7 @@ router.post('/create-profile', auth, role('doctor'), async (req, res) => {
       licenseNumber,
       experienceYears,
       hospital,
+      hospitalId,
       bio,
       consultationFee,
       availability
@@ -30,6 +31,7 @@ router.post('/create-profile', auth, role('doctor'), async (req, res) => {
       licenseNumber,
       experienceYears,
       hospital,
+      hospitalId,
       bio,
       consultationFee,
       availability
@@ -40,6 +42,74 @@ router.post('/create-profile', auth, role('doctor'), async (req, res) => {
       doctor
     });
 
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/me/profile', auth, role('doctor'), async (req, res) => {
+  try {
+    const doctor = await Doctor.findOne({ user: req.user.id }).populate('user', 'name email phone');
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor profile not found' });
+    }
+
+    res.json({ doctor });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.put('/me/profile', auth, role('doctor'), async (req, res) => {
+  try {
+    const updates = {};
+    const fields = ['specialty', 'licenseNumber', 'experienceYears', 'hospital', 'hospitalId', 'bio', 'consultationFee', 'availability'];
+
+    fields.forEach((field) => {
+      if (typeof req.body[field] !== 'undefined') {
+        updates[field] = req.body[field];
+      }
+    });
+
+    const doctor = await Doctor.findOneAndUpdate(
+      { user: req.user.id },
+      updates,
+      { new: true, runValidators: true }
+    ).populate('user', 'name email phone');
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor profile not found' });
+    }
+
+    res.json({ message: 'Doctor profile updated successfully', doctor });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.get('/pending-approvals', auth, role('admin'), async (req, res) => {
+  try {
+    const doctors = await Doctor.find({ isApproved: false }).populate('user', 'name email phone');
+    res.json({ doctors });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+router.patch('/:doctorId/approve', auth, role('admin'), async (req, res) => {
+  try {
+    const doctor = await Doctor.findByIdAndUpdate(
+      req.params.doctorId,
+      { isApproved: true },
+      { new: true }
+    ).populate('user', 'name email phone');
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor profile not found' });
+    }
+
+    res.json({ message: 'Doctor approved successfully', doctor });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
