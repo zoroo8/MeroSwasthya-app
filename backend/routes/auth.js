@@ -4,6 +4,8 @@ import roleMiddleware from '../middleware/roleMiddleware.js';
 import {
   register,
   login,
+  refreshAccessToken,
+  logout,
   verifyOtp,
   resendOtp,
   forgotPassword,
@@ -11,8 +13,7 @@ import {
   getCurrentUser,
   patientDashboard,
   doctorDashboard,
-  adminDashboard,
-  hospitalDashboard
+  adminDashboard
 } from '../controllers/authController.js';
 
 const router = express.Router();
@@ -22,6 +23,12 @@ router.post('/register', register);
 
 // Login
 router.post('/login', login);
+
+// Refresh access token using refresh token cookie
+router.post('/refresh-token', refreshAccessToken);
+
+// Logout and clear refresh token cookie
+router.post('/logout', logout);
 
 // OTP Verification
 router.post('/verify-otp', verifyOtp);
@@ -44,7 +51,5 @@ router.get('/dashboard/patient', authMiddleware, roleMiddleware('patient'), pati
 router.get('/dashboard/doctor', authMiddleware, roleMiddleware('doctor'), doctorDashboard);
 
 router.get('/dashboard/admin', authMiddleware, roleMiddleware('admin'), adminDashboard);
-
-router.get('/dashboard/hospital', authMiddleware, roleMiddleware('hospital'), hospitalDashboard);
 
 export default router;

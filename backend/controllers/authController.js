@@ -1,10 +1,15 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import { getDashboardPathByRole } from '../utils/dashboardByRole.js';
 import { isEmailServiceConfigured, sendOtpEmail } from '../utils/emailService.js';
 
 const OTP_EXPIRY_MINUTES = 10;
+const ACCESS_TOKEN_EXPIRES_IN = process.env.ACCESS_TOKEN_EXPIRES_IN || '15m';
+const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || '7d';
+const REFRESH_TOKEN_COOKIE_NAME = 'refreshToken';
+const REFRESH_TOKEN_COOKIE_MAX_AGE = 7 * 24 * 60 * 60 * 1000;
 
 // Helper functions
 const generateOtp = () => {
@@ -15,12 +20,61 @@ const getEmailNotConfiguredMessage = () => {
   return 'Email service not configured. Set EMAIL_USER and EMAIL_PASS in .env';
 };
 
-const createToken = (user) => {
+const getAccessTokenSecret = () => process.env.JWT_SECRET;
+
+const getRefreshTokenSecret = () => process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+
+const createAccessToken = (user) => {
   return jwt.sign(
     { id: user._id, role: user.role },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    getAccessTokenSecret(),
+    { expiresIn: ACCESS_TOKEN_EXPIRES_IN }
   );
+};
+
+const createRefreshToken = (user) => {
+  return jwt.sign(
+    { id: user._id, tokenType: 'refresh' },
+    getRefreshTokenSecret(),
+    { expiresIn: REFRESH_TOKEN_EXPIRES_IN }
+  );
+};
+
+const hashToken = (token) => {
+  return crypto.createHash('sha256').update(token).digest('hex');
+};
+
+const setRefreshTokenCookie = (res, refreshToken) => {
+  res.cookie(REFRESH_TOKEN_COOKIE_NAME, refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: REFRESH_TOKEN_COOKIE_MAX_AGE,
+  });
+};
+
+const clearRefreshTokenCookie = (res) => {
+  res.clearCookie(REFRESH_TOKEN_COOKIE_NAME, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+  });
+};
+
+const persistRefreshToken = async (user, refreshToken) => {
+  user.refreshTokenHash = hashToken(refreshToken);
+  user.refreshTokenExpiresAt = new Date(Date.now() + REFRESH_TOKEN_COOKIE_MAX_AGE);
+  await user.save();
+};
+
+const ensureJwtSecretsConfigured = () => {
+  if (!getAccessTokenSecret()) {
+    throw new Error('JWT_SECRET is not configured');
+  }
+
+  if (!getRefreshTokenSecret()) {
+    throw new Error('JWT_REFRESH_SECRET or JWT_SECRET is not configured');
+  }
 };
 
 const buildAuthResponse = (user, token, message) => {
@@ -111,6 +165,8 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    ensureJwtSecretsConfigured();
+
     if (!email || !password) {
       return res.status(400).json({ message: 'Email and password are required' });
     }
@@ -123,6 +179,10 @@ export const login = async (req, res) => {
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ message: "Invalid credentials" });
 
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Account is deactivated. Contact support.' });
+    }
+
     if (!user.isVerified) {
       return res.status(403).json({
         message: 'Account not verified. Please verify OTP first.',
@@ -130,7 +190,10 @@ export const login = async (req, res) => {
       });
     }
 
-    const token = createToken(user);
+    const token = createAccessToken(user);
+    const refreshToken = createRefreshToken(user);
+    await persistRefreshToken(user, refreshToken);
+    setRefreshTokenCookie(res, refreshToken);
 
     res.json(buildAuthResponse(user, token, 'Login successful'));
 
@@ -139,9 +202,80 @@ export const login = async (req, res) => {
   }
 };
 
+export const refreshAccessToken = async (req, res) => {
+  try {
+    ensureJwtSecretsConfigured();
+
+    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+    if (!refreshToken) {
+      return res.status(401).json({ message: 'Refresh token is missing' });
+    }
+
+    const decoded = jwt.verify(refreshToken, getRefreshTokenSecret());
+    if (decoded.tokenType !== 'refresh') {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    const user = await User.findById(decoded.id);
+    if (!user || !user.refreshTokenHash) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Account is deactivated. Contact support.' });
+    }
+
+    const incomingRefreshTokenHash = hashToken(refreshToken);
+    if (user.refreshTokenHash !== incomingRefreshTokenHash) {
+      return res.status(401).json({ message: 'Invalid refresh token' });
+    }
+
+    if (user.refreshTokenExpiresAt && user.refreshTokenExpiresAt.getTime() < Date.now()) {
+      return res.status(401).json({ message: 'Refresh token expired. Please login again.' });
+    }
+
+    const nextAccessToken = createAccessToken(user);
+    const nextRefreshToken = createRefreshToken(user);
+    await persistRefreshToken(user, nextRefreshToken);
+    setRefreshTokenCookie(res, nextRefreshToken);
+
+    res.json(buildAuthResponse(user, nextAccessToken, 'Access token refreshed'));
+  } catch (err) {
+    clearRefreshTokenCookie(res);
+    res.status(401).json({ message: 'Invalid or expired refresh token' });
+  }
+};
+
+export const logout = async (req, res) => {
+  try {
+    const refreshToken = req.cookies?.[REFRESH_TOKEN_COOKIE_NAME];
+
+    if (refreshToken) {
+      try {
+        const decoded = jwt.verify(refreshToken, getRefreshTokenSecret());
+        const user = await User.findById(decoded.id);
+        if (user) {
+          user.refreshTokenHash = undefined;
+          user.refreshTokenExpiresAt = undefined;
+          await user.save();
+        }
+      } catch (err) {
+        // Ignore token parsing errors during logout and always clear cookie.
+      }
+    }
+
+    clearRefreshTokenCookie(res);
+    res.json({ message: 'Logged out successfully' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
+
+    ensureJwtSecretsConfigured();
 
     if (!email || !otp) {
       return res.status(400).json({ message: 'Email and OTP are required' });
@@ -171,7 +305,11 @@ export const verifyOtp = async (req, res) => {
     user.verificationOtpExpiresAt = undefined;
     await user.save();
 
-    const token = createToken(user);
+    const token = createAccessToken(user);
+    const refreshToken = createRefreshToken(user);
+    await persistRefreshToken(user, refreshToken);
+    setRefreshTokenCookie(res, refreshToken);
+
     res.json(buildAuthResponse(user, token, 'Account verified successfully'));
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -301,10 +439,14 @@ export const resetPassword = async (req, res) => {
 
 export const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById(req.user.id).select('-password -refreshTokenHash');
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (!user.isActive) {
+      return res.status(403).json({ message: 'Account is deactivated. Contact support.' });
     }
 
     res.json({
@@ -326,8 +468,4 @@ export const doctorDashboard = (req, res) => {
 
 export const adminDashboard = (req, res) => {
   res.json({ message: 'Admin dashboard access granted', role: req.user.role });
-};
-
-export const hospitalDashboard = (req, res) => {
-  res.json({ message: 'Hospital dashboard access granted', role: req.user.role });
 };

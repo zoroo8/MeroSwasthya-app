@@ -21,8 +21,13 @@ const userSchema = new mongoose.Schema(
 
     role: {
       type: String,
-      enum: ['patient', 'doctor', 'admin', 'hospital'],
+      enum: ['patient', 'doctor', 'admin'],
       default: 'patient',
+    },
+
+    isActive: {
+      type: Boolean,
+      default: true,
     },
 
     isVerified: {
@@ -35,6 +40,9 @@ const userSchema = new mongoose.Schema(
 
     resetOtp: String,
     resetOtpExpiresAt: Date,
+
+    refreshTokenHash: String,
+    refreshTokenExpiresAt: Date,
 
     phone: String,
     profileImage: String,
