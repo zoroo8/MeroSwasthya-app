@@ -307,6 +307,10 @@ export const getCurrentUser = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    if (user.isActive === false) {
+      return res.status(403).json({ message: 'Account is deactivated. Contact support.' });
+    }
+
     res.json({
       user,
       redirectTo: getDashboardPathByRole(user.role),

@@ -25,6 +25,11 @@ const userSchema = new mongoose.Schema(
       default: 'patient',
     },
 
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+
     isVerified: {
       type: Boolean,
       default: false,
@@ -35,6 +40,13 @@ const userSchema = new mongoose.Schema(
 
     resetOtp: String,
     resetOtpExpiresAt: Date,
+
+    age: Number,
+
+    gender: {
+      type: String,
+      enum: ['male', 'female', 'other'],
+    },
 
     phone: String,
     profileImage: String,
