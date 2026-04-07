@@ -11,6 +11,7 @@ const createProfile = async (req, res) => {
       bio,
       consultationFee,
       availability,
+      maxDailyBookings,
     } = req.body;
 
     const existing = await Doctor.findOne({ user: req.user.id });
@@ -28,6 +29,7 @@ const createProfile = async (req, res) => {
       bio,
       consultationFee,
       availability,
+      maxDailyBookings,
     });
 
     res.status(201).json({
@@ -56,7 +58,7 @@ const getMyProfile = async (req, res) => {
 const updateMyProfile = async (req, res) => {
   try {
     const updates = {};
-    const fields = ['specialty', 'licenseNumber', 'experienceYears', 'hospital', 'hospitalId', 'bio', 'consultationFee', 'availability'];
+    const fields = ['specialty', 'licenseNumber', 'experienceYears', 'hospital', 'hospitalId', 'bio', 'consultationFee', 'availability', 'maxDailyBookings'];
 
     fields.forEach((field) => {
       if (typeof req.body[field] !== 'undefined') {

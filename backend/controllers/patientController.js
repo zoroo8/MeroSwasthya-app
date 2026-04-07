@@ -1,4 +1,6 @@
 const PatientProfile = require('../models/PatientProfile');
+const Appointment = require('../models/Appointment');
+const MedicalReport = require('../models/MedicalReport');
 
 const getMyProfile = async (req, res) => {
   try {
@@ -50,7 +52,78 @@ const upsertMyProfile = async (req, res) => {
   }
 };
 
+const getMyPastAppointmentsWithReports = async (req, res) => {
+  try {
+    const now = new Date();
+    const pastStatuses = ['completed', 'cancelled', 'no_show'];
+
+    const appointments = await Appointment.find({
+      patientUser: req.user.id,
+      $or: [{ scheduledAt: { $lt: now } }, { status: { $in: pastStatuses } }],
+    })
+      .populate('hospitalId', 'name address phone')
+      .populate({ path: 'doctor', populate: { path: 'user', select: 'name email phone' } })
+      .sort({ scheduledAt: -1 });
+
+    const appointmentIds = appointments.map((appointment) => appointment._id);
+    const reports = await MedicalReport.find({
+      patientUser: req.user.id,
+      appointment: { $in: appointmentIds },
+    }).populate('appointment', '_id');
+
+    const reportByAppointmentId = new Map(
+      reports.map((report) => [String(report.appointment._id), report])
+    );
+
+    const history = appointments.map((appointment) => {
+      const report = reportByAppointmentId.get(String(appointment._id)) || null;
+
+      return {
+        appointmentId: appointment._id,
+        date: appointment.scheduledAt,
+        status: appointment.status,
+        queueNumber: appointment.queueNumber,
+        hospital: appointment.hospitalId
+          ? {
+              id: appointment.hospitalId._id,
+              name: appointment.hospitalId.name,
+              address: appointment.hospitalId.address,
+              phone: appointment.hospitalId.phone,
+            }
+          : null,
+        doctor: appointment.doctor
+          ? {
+              id: appointment.doctor._id,
+              specialty: appointment.doctor.specialty,
+              consultationFee: appointment.doctor.consultationFee,
+              name: appointment.doctor.user?.name,
+              email: appointment.doctor.user?.email,
+              phone: appointment.doctor.user?.phone,
+            }
+          : null,
+        report: report
+          ? {
+              id: report._id,
+              diagnosis: report.diagnosis,
+              prescription: report.prescription,
+              testRecommendations: report.testRecommendations,
+              followUpDate: report.followUpDate,
+              notes: report.notes,
+              attachments: report.attachments,
+              createdAt: report.createdAt,
+            }
+          : null,
+      };
+    });
+
+    res.json({ history });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   getMyProfile,
   upsertMyProfile,
+  getMyPastAppointmentsWithReports,
 };

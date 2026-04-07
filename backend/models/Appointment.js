@@ -20,6 +20,16 @@ const appointmentSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    queueDate: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    queueNumber: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
     reason: {
       type: String,
       required: true,
@@ -34,5 +44,8 @@ const appointmentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+appointmentSchema.index({ doctor: 1, hospitalId: 1, queueDate: 1, queueNumber: 1 }, { unique: true });
+appointmentSchema.index({ doctor: 1, hospitalId: 1, queueDate: 1, status: 1 });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);

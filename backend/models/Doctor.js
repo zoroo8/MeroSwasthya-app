@@ -38,6 +38,11 @@ const doctorSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    maxDailyBookings: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
 
     availability: [
       {
