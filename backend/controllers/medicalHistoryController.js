@@ -66,6 +66,18 @@ const fetchTimeline = async (patientId) => {
 
   return [...historyEntries, ...prescriptionEntries].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 };
++
++const canViewPatientHistory = (user, patientId) => {
++  if (user.role === 'admin') {
++    return true;
++  }
++
++  if (user.role === 'doctor') {
++    return true;
++  }
++
++  return user.role === 'patient' && user.id === String(patientId);
++};
 
 export const getMyMedicalHistory = async (req, res) => {
   try {
@@ -80,6 +92,29 @@ export const getMyMedicalHistory = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
++
++export const getPatientMedicalHistory = async (req, res) => {
++  try {
++    const patientId = String(req.params.patientId || '').trim();
++
++    if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
++      return res.status(400).json({ message: 'Invalid patientId' });
++    }
++
++    if (!canViewPatientHistory(req.user, patientId)) {
++      return res.status(403).json({ message: 'Access denied' });
++    }
++
++    const timeline = await fetchTimeline(patientId);
++
++    return res.json({
++      patientId,
++      timeline,
++    });
++  } catch (err) {
++    return res.status(500).json({ message: err.message });
++  }
++};
 
 export const addMedicalDocument = async (req, res) => {
   try {
