@@ -66,18 +66,18 @@ const fetchTimeline = async (patientId) => {
 
   return [...historyEntries, ...prescriptionEntries].sort((left, right) => new Date(right.createdAt) - new Date(left.createdAt));
 };
-+
-+const canViewPatientHistory = (user, patientId) => {
-+  if (user.role === 'admin') {
-+    return true;
-+  }
-+
-+  if (user.role === 'doctor') {
-+    return true;
-+  }
-+
-+  return user.role === 'patient' && user.id === String(patientId);
-+};
+
+const canViewPatientHistory = (user, patientId) => {
+  if (user.role === 'admin') {
+    return true;
+  }
+
+  if (user.role === 'doctor') {
+    return true;
+  }
+
+  return user.role === 'patient' && user.id === String(patientId);
+};
 
 export const getMyMedicalHistory = async (req, res) => {
   try {
@@ -92,30 +92,29 @@ export const getMyMedicalHistory = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-+
-+export const getPatientMedicalHistory = async (req, res) => {
-+  try {
-+    const patientId = String(req.params.patientId || '').trim();
-+
-+    if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
-+      return res.status(400).json({ message: 'Invalid patientId' });
-+    }
-+
-+    if (!canViewPatientHistory(req.user, patientId)) {
-+      return res.status(403).json({ message: 'Access denied' });
-+    }
-+
-+    const timeline = await fetchTimeline(patientId);
-+
-+    return res.json({
-+      patientId,
-+      timeline,
-+    });
-+  } catch (err) {
-+    return res.status(500).json({ message: err.message });
-+  }
-+};
 
+export const getPatientMedicalHistory = async (req, res) => {
+  try {
+    const patientId = String(req.params.patientId || '').trim();
+
+    if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ message: 'Invalid patientId' });
+    }
+
+    if (!canViewPatientHistory(req.user, patientId)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const timeline = await fetchTimeline(patientId);
+
+    return res.json({
+      patientId,
+      timeline,
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
 export const addMedicalDocument = async (req, res) => {
   try {
     const { patientId, title, description, documentUrl, documentName, tags } = req.body;
@@ -152,78 +151,101 @@ export const addMedicalDocument = async (req, res) => {
     return res.status(500).json({ message: err.message });
   }
 };
-+
-+export const addMedicalNote = async (req, res) => {
-+  try {
-+    const { patientId, title, description, tags } = req.body;
-+
-+    if (!patientId || !title) {
-+      return res.status(400).json({ message: 'patientId and title are required' });
-+    }
-+
-+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
-+      return res.status(400).json({ message: 'Invalid patientId' });
-+    }
-+
-+    if (!['doctor', 'admin'].includes(req.user.role)) {
-+      return res.status(403).json({ message: 'Access denied' });
-+    }
-+
-+    const entry = await MedicalHistory.create({
-+      patient: patientId,
-+      entryType: 'note',
-+      title: String(title).trim(),
-+      description: description ? String(description).trim() : '',
-+      sourceType: req.user.role,
-+      sourceId: req.user.id,
-+      documentUrl: '',
-+      documentName: '',
-+      tags: normalizeTags(tags),
-+    });
-+
-+    return res.status(201).json({
-+      message: 'Medical note added successfully',
-+      entry: formatEntry(entry),
-+    });
-+  } catch (err) {
-+    return res.status(500).json({ message: err.message });
-+  }
-+};
-+
-+export const getMedicalHistoryDocuments = async (req, res) => {
-+  try {
-+    const patientId = req.user.id;
-+    const documents = await MedicalHistory.find({ patient: patientId, entryType: 'document' }).sort({ createdAt: -1 });
-+
-+    return res.json({
-+      patientId,
-+      documents: documents.map(formatEntry),
-+    });
-+  } catch (err) {
-+    return res.status(500).json({ message: err.message });
-+  }
-+};
-+
-+export const getMedicalHistorySummary = async (req, res) => {
-+  try {
-+    const patientId = req.user.id;
-+    const [historyCount, documentCount, noteCount, prescriptionCount] = await Promise.all([
-+      MedicalHistory.countDocuments({ patient: patientId }),
-+      MedicalHistory.countDocuments({ patient: patientId, entryType: 'document' }),
-+      MedicalHistory.countDocuments({ patient: patientId, entryType: 'note' }),
-+      Prescription.countDocuments({ patient: patientId }),
-+    ]);
-+
-+    return res.json({
-+      patientId,
-+      summary: {
-+        totalEntries: historyCount + prescriptionCount,
-+        documents: documentCount,
-+        notes: noteCount,
-+        prescriptions: prescriptionCount,
-+      },
-+    });
-+  } catch (err) {
-+    return res.status(500).json({ message: err.message });
-+  }
-+};
+
+export const addMedicalNote = async (req, res) => {
+  try {
+    const { patientId, title, description, tags } = req.body;
+
+    if (!patientId || !title) {
+      return res.status(400).json({ message: 'patientId and title are required' });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ message: 'Invalid patientId' });
+    }
+
+    if (!['doctor', 'admin'].includes(req.user.role)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const entry = await MedicalHistory.create({
+      patient: patientId,
+      entryType: 'note',
+      title: String(title).trim(),
+      description: description ? String(description).trim() : '',
+      sourceType: req.user.role,
+      sourceId: req.user.id,
+      documentUrl: '',
+      documentName: '',
+      tags: normalizeTags(tags),
+    });
+
+    return res.status(201).json({
+      message: 'Medical note added successfully',
+      entry: formatEntry(entry),
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const getMedicalHistoryDocuments = async (req, res) => {
+  try {
+    const patientId = req.user.id;
+    const documents = await MedicalHistory.find({ patient: patientId, entryType: 'document' }).sort({ createdAt: -1 });
+
+    return res.json({
+      patientId,
+      documents: documents.map(formatEntry),
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const getPatientMedicalHistoryDocuments = async (req, res) => {
+  try {
+    const patientId = String(req.params.patientId || '').trim();
+
+    if (!patientId || !mongoose.Types.ObjectId.isValid(patientId)) {
+      return res.status(400).json({ message: 'Invalid patientId' });
+    }
+
+    if (!canViewPatientHistory(req.user, patientId)) {
+      return res.status(403).json({ message: 'Access denied' });
+    }
+
+    const documents = await MedicalHistory.find({ patient: patientId, entryType: 'document' }).sort({ createdAt: -1 });
+
+    return res.json({
+      patientId,
+      documents: documents.map(formatEntry),
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
+
+export const getMedicalHistorySummary = async (req, res) => {
+  try {
+    const patientId = req.user.id;
+    const [historyCount, documentCount, noteCount, prescriptionCount] = await Promise.all([
+      MedicalHistory.countDocuments({ patient: patientId }),
+      MedicalHistory.countDocuments({ patient: patientId, entryType: 'document' }),
+      MedicalHistory.countDocuments({ patient: patientId, entryType: 'note' }),
+      Prescription.countDocuments({ patient: patientId }),
+    ]);
+
+    return res.json({
+      patientId,
+      summary: {
+        totalEntries: historyCount + prescriptionCount,
+        documents: documentCount,
+        notes: noteCount,
+        prescriptions: prescriptionCount,
+      },
+    });
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+};
