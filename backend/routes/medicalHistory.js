@@ -7,6 +7,7 @@ import {
   getMedicalHistoryDocuments,
   getMedicalHistorySummary,
   getMyMedicalHistory,
+  getPatientMedicalHistory,
 } from '../controllers/medicalHistoryController.js';
 
 const router = express.Router();
@@ -14,6 +15,7 @@ const router = express.Router();
 router.get('/me', authMiddleware, roleMiddleware('patient'), getMyMedicalHistory);
 router.get('/me/documents', authMiddleware, roleMiddleware('patient'), getMedicalHistoryDocuments);
 router.get('/me/summary', authMiddleware, roleMiddleware('patient'), getMedicalHistorySummary);
+router.get('/patients/:patientId', authMiddleware, roleMiddleware('doctor', 'admin', 'patient'), getPatientMedicalHistory);
 router.post('/documents', authMiddleware, roleMiddleware('patient'), addMedicalDocument);
 router.post('/notes', authMiddleware, roleMiddleware('doctor', 'admin'), addMedicalNote);
 
