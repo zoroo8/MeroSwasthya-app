@@ -321,3 +321,88 @@ export const rejectDoctor = async (req, res) => {
     res.status(500).json({ message: 'Error rejecting doctor', error: error.message });
   }
 };
+
+// Get platform statistics
+export const getPlatformStatistics = async (req, res) => {
+  try {
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'view_statistics');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const totalUsers = await User.countDocuments({ isActive: true });
+    const totalDoctors = await Doctor.countDocuments({ isApproved: true });
+    const pendingDoctors = await Doctor.countDocuments({ isApproved: false });
+    const inactiveUsers = await User.countDocuments({ isActive: false });
+
+    const usersByRole = await User.aggregate([
+      { $group: { _id: '$role', count: { $sum: 1 } } },
+    ]);
+
+    const doctorsBySpecialty = await Doctor.aggregate([
+      { $group: { _id: '$specialty', count: { $sum: 1 } } },
+    ]);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        overview: {
+          totalUsers,
+          totalDoctors,
+          pendingDoctors,
+          inactiveUsers,
+        },
+        usersByRole,
+        doctorsBySpecialty,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching statistics', error: error.message });
+  }
+};
+
+// Get admin activity logs
+export const getAdminLogs = async (req, res) => {
+  try {
+    const { adminId, page = 1, limit = 20 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'view_statistics');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const filter = adminId ? { _id: adminId } : {};
+    const admins = await Admin.find(filter)
+      .populate('user', 'name email role')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    const total = await Admin.countDocuments(filter);
+
+    // Flatten action logs from all admins
+    const allLogs = admins.flatMap(admin =>
+      admin.actionLogs.map(log => ({
+        ...log,
+        adminName: admin.user.name,
+        adminId: admin._id,
+      }))
+    );
+
+    res.status(200).json({
+      success: true,
+      data: allLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admin logs', error: error.message });
+  }
+};
