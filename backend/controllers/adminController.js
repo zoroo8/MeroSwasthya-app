@@ -406,3 +406,129 @@ export const getAdminLogs = async (req, res) => {
     res.status(500).json({ message: 'Error fetching admin logs', error: error.message });
   }
 };
+
+// Update admin permissions
+export const updateAdminPermissions = async (req, res) => {
+  try {
+    const { adminId } = req.params;
+    const { permissions } = req.body;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'manage_users');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    // Validate permissions format
+    if (!Array.isArray(permissions)) {
+      return res.status(400).json({ message: 'Permissions must be an array' });
+    }
+
+    const admin = await Admin.findByIdAndUpdate(
+      adminId,
+      { permissions },
+      { new: true }
+    ).populate('user', 'name email role');
+
+    if (!admin) {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Admin permissions updated',
+      data: admin,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating admin permissions', error: error.message });
+  }
+};
+
+// Initialize new admin
+export const createAdmin = async (req, res) => {
+  try {
+    const { userId, permissions = ['manage_users', 'manage_doctors', 'view_statistics'] } = req.body;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'manage_users');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    // Check if user exists
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Check if already admin
+    const existingAdmin = await Admin.findOne({ user: userId });
+    if (existingAdmin) {
+      return res.status(400).json({ message: 'User is already an admin' });
+    }
+
+    // Create admin record
+    const admin = new Admin({
+      user: userId,
+      permissions,
+      isActive: true,
+    });
+
+    await admin.save();
+
+    // Log action
+    const adminUser = await Admin.findOne({ user: req.user.id });
+    await logAdminAction(
+      adminUser._id,
+      'create_admin',
+      userId,
+      user.role,
+      `New admin created with permissions: ${permissions.join(', ')}`
+    );
+
+    await admin.populate('user', 'name email role');
+
+    res.status(201).json({
+      success: true,
+      message: 'Admin created successfully',
+      data: admin,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error creating admin', error: error.message });
+  }
+};
+
+// Get all admins
+export const getAllAdmins = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'manage_users');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const admins = await Admin.find()
+      .populate('user', 'name email role')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    const total = await Admin.countDocuments();
+
+    res.status(200).json({
+      success: true,
+      data: admins,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching admins', error: error.message });
+  }
+};
