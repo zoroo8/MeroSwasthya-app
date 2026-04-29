@@ -195,3 +195,129 @@ export const reactivateUser = async (req, res) => {
     res.status(500).json({ message: 'Error reactivating user', error: error.message });
   }
 };
+
+// Get pending doctor approvals
+export const getPendingDoctors = async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const skip = (page - 1) * limit;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'approve_doctors');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const doctors = await Doctor.find({ isApproved: false })
+      .populate('user', '-password')
+      .skip(skip)
+      .limit(parseInt(limit))
+      .sort({ createdAt: -1 });
+
+    const total = await Doctor.countDocuments({ isApproved: false });
+
+    res.status(200).json({
+      success: true,
+      data: doctors,
+      pagination: {
+        total,
+        page: parseInt(page),
+        limit: parseInt(limit),
+        pages: Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching pending doctors', error: error.message });
+  }
+};
+
+// Approve doctor
+export const approveDoctor = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { approvalNotes } = req.body;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'approve_doctors');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const doctor = await Doctor.findByIdAndUpdate(
+      doctorId,
+      {
+        isApproved: true,
+        approvalDate: new Date(),
+        approvalNotes,
+      },
+      { new: true }
+    ).populate('user', '-password');
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    // Log action
+    const admin = await Admin.findOne({ user: req.user.id });
+    await logAdminAction(
+      admin._id,
+      'approve_doctor',
+      doctor.user._id,
+      'doctor',
+      `Doctor approved. Notes: ${approvalNotes || 'No notes'}`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Doctor approved successfully',
+      data: doctor,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error approving doctor', error: error.message });
+  }
+};
+
+// Reject doctor
+export const rejectDoctor = async (req, res) => {
+  try {
+    const { doctorId } = req.params;
+    const { rejectionReason } = req.body;
+
+    // Check admin permission
+    const hasPermission = await checkAdminPermission(req.user.id, 'approve_doctors');
+    if (!hasPermission) {
+      return res.status(403).json({ message: 'Insufficient permissions' });
+    }
+
+    const doctor = await Doctor.findByIdAndUpdate(
+      doctorId,
+      {
+        isApproved: false,
+        rejectionReason,
+      },
+      { new: true }
+    ).populate('user', '-password');
+
+    if (!doctor) {
+      return res.status(404).json({ message: 'Doctor not found' });
+    }
+
+    // Log action
+    const admin = await Admin.findOne({ user: req.user.id });
+    await logAdminAction(
+      admin._id,
+      'reject_doctor',
+      doctor.user._id,
+      'doctor',
+      `Doctor rejected. Reason: ${rejectionReason || 'No reason provided'}`
+    );
+
+    res.status(200).json({
+      success: true,
+      message: 'Doctor rejected',
+      data: doctor,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error rejecting doctor', error: error.message });
+  }
+};
