@@ -11,6 +11,9 @@ import {
   rejectDoctor,
   getPlatformStatistics,
   getAdminLogs,
+  createAdmin,
+  getAllAdmins,
+  updateAdminPermissions,
 } from '../controllers/adminController.js';
 
 const router = express.Router();
@@ -33,5 +36,10 @@ router.patch('/doctors/:doctorId/reject', rejectDoctor);
 // Statistics Routes
 router.get('/statistics', getPlatformStatistics);
 router.get('/logs', getAdminLogs);
+
+// Admin Management Routes
+router.post('/admins', createAdmin);
+router.get('/admins', getAllAdmins);
+router.patch('/admins/:adminId/permissions', updateAdminPermissions);
 
 export default router;
