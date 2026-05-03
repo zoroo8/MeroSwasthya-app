@@ -4,6 +4,21 @@ const User = require('../models/User');
 const DoctorHospital = require('../models/DoctorHospital');
 const bcrypt = require('bcryptjs');
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getDoctorUserByIdentifier = async ({ doctorUserId, doctorEmail, email }) => {
+  if (doctorUserId) {
+    return User.findById(doctorUserId);
+  }
+
+  const requestedEmail = doctorEmail || email;
+  if (!requestedEmail) {
+    return null;
+  }
+
+  return User.findOne({ email: requestedEmail.trim().toLowerCase() });
+};
+
 const getHospitalAndAuthorize = async (hospitalId, user) => {
   const hospital = await Hospital.findById(hospitalId);
   if (!hospital) {
@@ -84,6 +99,87 @@ const getHospitals = async (_req, res) => {
   }
 };
 
+const getMyHospitals = async (req, res) => {
+  try {
+    const filter = req.user.role === 'admin' ? { isActive: true } : { adminUser: req.user.id, isActive: true };
+    const hospitals = await Hospital.find(filter).sort({ name: 1 });
+    res.json({ hospitals });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const searchDoctorCandidates = async (req, res) => {
+  try {
+    const search = String(req.query.search || '').trim();
+    const hospitalId = req.query.hospitalId;
+    const userFilter = { role: 'doctor' };
+
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
+      userFilter.$or = [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }];
+    }
+
+    if (hospitalId) {
+      const { error } = await getHospitalAndAuthorize(hospitalId, req.user);
+      if (error) {
+        return res.status(error.status).json({ message: error.message });
+      }
+    }
+
+    const users = await User.find(userFilter)
+      .select('name email phone isVerified')
+      .sort({ name: 1, email: 1 })
+      .limit(50);
+
+    const userIds = users.map((user) => user._id);
+    const profiles = await Doctor.find({ user: { $in: userIds } });
+    const profileByUserId = new Map(profiles.map((profile) => [String(profile.user), profile]));
+
+    let linkedDoctorIds = new Set();
+    if (hospitalId && profiles.length > 0) {
+      const links = await DoctorHospital.find({
+        hospital: hospitalId,
+        doctor: { $in: profiles.map((profile) => profile._id) },
+        isActive: true,
+      }).select('doctor');
+
+      linkedDoctorIds = new Set(links.map((link) => String(link.doctor)));
+    }
+
+    const doctors = users.map((user) => {
+      const profile = profileByUserId.get(String(user._id));
+
+      return {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          isVerified: user.isVerified,
+        },
+        profile: profile
+          ? {
+              id: profile._id,
+              specialty: profile.specialty,
+              licenseNumber: profile.licenseNumber,
+              experienceYears: profile.experienceYears,
+              consultationFee: profile.consultationFee,
+              maxDailyBookings: profile.maxDailyBookings,
+              bio: profile.bio,
+              isApproved: profile.isApproved,
+            }
+          : null,
+        isLinked: profile ? linkedDoctorIds.has(String(profile._id)) : false,
+      };
+    });
+
+    res.json({ doctors });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 const getHospitalDoctors = async (req, res) => {
   try {
     const hospital = await Hospital.findById(req.params.hospitalId);
@@ -92,7 +188,7 @@ const getHospitalDoctors = async (req, res) => {
     }
 
     const specialtyRegex = req.query.specialty
-      ? new RegExp(`^${req.query.specialty.trim()}$`, 'i')
+      ? new RegExp(`^${escapeRegex(req.query.specialty.trim())}$`, 'i')
       : null;
 
     const links = await DoctorHospital.find({ hospital: hospital._id, isActive: true })
@@ -166,6 +262,8 @@ const addDoctorToHospital = async (req, res) => {
     const { hospitalId } = req.params;
     const {
       doctorUserId,
+      doctorEmail,
+      email,
       specialty,
       licenseNumber,
       experienceYears,
@@ -180,16 +278,16 @@ const addDoctorToHospital = async (req, res) => {
       return res.status(error.status).json({ message: error.message });
     }
 
-    if (!doctorUserId) {
-      return res.status(400).json({ message: 'doctorUserId is required' });
+    if (!doctorUserId && !doctorEmail && !email) {
+      return res.status(400).json({ message: 'doctorEmail is required' });
     }
 
-    const user = await User.findById(doctorUserId);
+    const user = await getDoctorUserByIdentifier({ doctorUserId, doctorEmail, email });
     if (!user || user.role !== 'doctor') {
-      return res.status(400).json({ message: 'Valid doctor user is required' });
+      return res.status(400).json({ message: 'Valid doctor email is required' });
     }
 
-    let doctor = await Doctor.findOne({ user: doctorUserId });
+    let doctor = await Doctor.findOne({ user: user._id });
 
     if (!doctor) {
       if (!specialty || !licenseNumber) {
@@ -202,7 +300,7 @@ const addDoctorToHospital = async (req, res) => {
       }
 
       doctor = await Doctor.create({
-        user: doctorUserId,
+        user: user._id,
         specialty,
         licenseNumber,
         experienceYears,
@@ -343,6 +441,8 @@ const hireDoctor = async (req, res) => {
 module.exports = {
   createHospital,
   getHospitals,
+  getMyHospitals,
+  searchDoctorCandidates,
   getHospitalDoctors,
   assignDoctorToHospital,
   addDoctorToHospital,

@@ -89,7 +89,7 @@ const createOrUpdateReport = async (req, res) => {
     const report = await MedicalReport.findOneAndUpdate(
       { appointment: appointment._id },
       payload,
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { new: true, upsert: true, setDefaultsOnInsert: true, runValidators: true }
     )
       .populate('patientUser', 'name email phone')
       .populate('hospitalId', 'name address phone')

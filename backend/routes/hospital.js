@@ -4,6 +4,8 @@ const role = require('../middleware/roleMiddleware');
 const {
   createHospital,
   getHospitals,
+  getMyHospitals,
+  searchDoctorCandidates,
   getHospitalDoctors,
   assignDoctorToHospital,
   addDoctorToHospital,
@@ -13,6 +15,8 @@ const {
 const router = express.Router();
 
 router.get('/', getHospitals);
+router.get('/mine', auth, role('admin', 'hospital'), getMyHospitals);
+router.get('/doctor-candidates', auth, role('admin', 'hospital'), searchDoctorCandidates);
 router.get('/:hospitalId/doctors', getHospitalDoctors);
 router.post('/', auth, role('admin', 'hospital'), createHospital);
 router.post('/:hospitalId/doctors', auth, role('admin', 'hospital'), addDoctorToHospital);

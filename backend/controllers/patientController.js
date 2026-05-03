@@ -44,6 +44,7 @@ const upsertMyProfile = async (req, res) => {
       new: true,
       upsert: true,
       setDefaultsOnInsert: true,
+      runValidators: true,
     }).populate('user', 'name email phone');
 
     res.json({ message: 'Patient profile saved successfully', profile });

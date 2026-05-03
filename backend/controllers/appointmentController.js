@@ -5,6 +5,8 @@ const DoctorHospital = require('../models/DoctorHospital');
 
 const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 const getQueueDate = (scheduledAt) => {
   return new Date(scheduledAt).toISOString().slice(0, 10);
 };
@@ -230,7 +232,7 @@ const bookBySpecialty = async (req, res) => {
       return res.status(404).json({ message: 'Hospital not found' });
     }
 
-    const specialtyRegex = new RegExp(`^${specialty.trim()}$`, 'i');
+    const specialtyRegex = new RegExp(`^${escapeRegex(specialty.trim())}$`, 'i');
 
     const doctors = await Doctor.find({ isApproved: true, specialty: specialtyRegex })
       .sort({ experienceYears: -1 })
