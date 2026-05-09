@@ -4,6 +4,84 @@ const User = require('../models/User');
 const DoctorHospital = require('../models/DoctorHospital');
 const bcrypt = require('bcryptjs');
 
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+const toPositiveLimit = (value, fallback = 10) => {
+  const limit = Number(value);
+  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : fallback;
+};
+
+const normalizeAvailabilitySlots = ({ availabilitySlots, availableDates, maxDailyBookings }) => {
+  const defaultLimit = toPositiveLimit(maxDailyBookings);
+  const source = typeof availabilitySlots !== 'undefined' ? availabilitySlots : availableDates;
+
+  const rawSlots = Array.isArray(source)
+    ? source
+    : String(source || '')
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+  const slotByDate = new Map();
+
+  rawSlots.forEach((slot) => {
+    if (typeof slot === 'string') {
+      const [rawDate, rawLimit] = slot.split(':').map((part) => part.trim());
+      if (DATE_KEY_REGEX.test(rawDate)) {
+        slotByDate.set(rawDate, {
+          date: rawDate,
+          maxDailyBookings: toPositiveLimit(rawLimit, defaultLimit),
+        });
+      }
+      return;
+    }
+
+    if (slot && DATE_KEY_REGEX.test(String(slot.date || ''))) {
+      const date = String(slot.date).trim();
+      slotByDate.set(date, {
+        date,
+        maxDailyBookings: toPositiveLimit(slot.maxDailyBookings, defaultLimit),
+      });
+    }
+  });
+
+  return [...slotByDate.values()].sort((a, b) => a.date.localeCompare(b.date));
+};
+
+const getAvailabilitySlots = (link) => {
+  if (link?.availabilitySlots?.length > 0) {
+    return link.availabilitySlots.map((slot) => ({
+      date: slot.date,
+      maxDailyBookings: slot.maxDailyBookings,
+    }));
+  }
+
+  const dates = Array.isArray(link?.availableDates) ? link.availableDates : [];
+
+  return [...new Set(dates.filter((date) => DATE_KEY_REGEX.test(date)))]
+    .sort()
+    .map((date) => ({
+      date,
+      maxDailyBookings: toPositiveLimit(link?.maxDailyBookings),
+    }));
+};
+
+const getAvailableDates = (link) => getAvailabilitySlots(link).map((slot) => slot.date);
+
+const getDoctorUserByIdentifier = async ({ doctorUserId, doctorEmail, email }) => {
+  if (doctorUserId) {
+    return User.findById(doctorUserId);
+  }
+
+  const requestedEmail = doctorEmail || email;
+  if (!requestedEmail) {
+    return null;
+  }
+
+  return User.findOne({ email: requestedEmail.trim().toLowerCase() });
+};
+
 const getHospitalAndAuthorize = async (hospitalId, user) => {
   const hospital = await Hospital.findById(hospitalId);
   if (!hospital) {
@@ -17,13 +95,21 @@ const getHospitalAndAuthorize = async (hospitalId, user) => {
   return { hospital };
 };
 
-const upsertDoctorHospitalLink = async ({ doctorId, hospitalId, maxDailyBookings }) => {
+const upsertDoctorHospitalLink = async ({ doctorId, hospitalId, maxDailyBookings, availableDates, availabilitySlots }) => {
   const existing = await DoctorHospital.findOne({ doctor: doctorId, hospital: hospitalId });
+  const shouldUpdateSlots = typeof availabilitySlots !== 'undefined' || typeof availableDates !== 'undefined';
+  const normalizedSlots = shouldUpdateSlots
+    ? normalizeAvailabilitySlots({ availabilitySlots, availableDates, maxDailyBookings })
+    : [];
 
   if (existing) {
     existing.isActive = true;
     if (typeof maxDailyBookings !== 'undefined') {
-      existing.maxDailyBookings = maxDailyBookings;
+      existing.maxDailyBookings = toPositiveLimit(maxDailyBookings);
+    }
+    if (shouldUpdateSlots) {
+      existing.availabilitySlots = normalizedSlots;
+      existing.availableDates = normalizedSlots.map((slot) => slot.date);
     }
     await existing.save();
     return existing;
@@ -32,14 +118,16 @@ const upsertDoctorHospitalLink = async ({ doctorId, hospitalId, maxDailyBookings
   return DoctorHospital.create({
     doctor: doctorId,
     hospital: hospitalId,
-    maxDailyBookings: typeof maxDailyBookings === 'undefined' ? 10 : maxDailyBookings,
+    maxDailyBookings: toPositiveLimit(maxDailyBookings),
+    availableDates: normalizedSlots.map((slot) => slot.date),
+    availabilitySlots: normalizedSlots,
     isActive: true,
   });
 };
 
 const createHospital = async (req, res) => {
   try {
-    const { name, address, phone, email, hospitalAdminUserId } = req.body;
+    const { name, address, phone, email, bannerImage, hospitalAdminUserId } = req.body;
 
     if (!name) {
       return res.status(400).json({ message: 'Hospital name is required' });
@@ -66,6 +154,7 @@ const createHospital = async (req, res) => {
       address,
       phone,
       email,
+      bannerImage,
       adminUser: adminUserId,
     });
 
@@ -75,10 +164,133 @@ const createHospital = async (req, res) => {
   }
 };
 
-const getHospitals = async (_req, res) => {
+const getHospitals = async (req, res) => {
   try {
-    const hospitals = await Hospital.find({ isActive: true }).sort({ name: 1 });
+    const search = String(req.query.search || '').trim();
+    const filter = { isActive: true };
+
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
+      filter.$or = [
+        { name: searchRegex },
+        { address: searchRegex },
+        { phone: searchRegex },
+        { email: searchRegex },
+      ];
+    }
+
+    const hospitals = await Hospital.find(filter)
+      .populate('adminUser', 'name email phone profileImage')
+      .sort({ name: 1 });
     res.json({ hospitals });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const getMyHospitals = async (req, res) => {
+  try {
+    const filter = req.user.role === 'admin' ? { isActive: true } : { adminUser: req.user.id, isActive: true };
+    const hospitals = await Hospital.find(filter)
+      .populate('adminUser', 'name email phone profileImage')
+      .sort({ name: 1 });
+    res.json({ hospitals });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const updateHospital = async (req, res) => {
+  try {
+    const { hospital, error } = await getHospitalAndAuthorize(req.params.hospitalId, req.user);
+    if (error) {
+      return res.status(error.status).json({ message: error.message });
+    }
+
+    const fields = ['name', 'address', 'phone', 'email', 'bannerImage'];
+    fields.forEach((field) => {
+      if (typeof req.body[field] !== 'undefined') {
+        hospital[field] = typeof req.body[field] === 'string' ? req.body[field].trim() : req.body[field];
+      }
+    });
+
+    await hospital.save();
+    res.json({ message: 'Hospital updated successfully', hospital });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(400).json({ message: 'Hospital already exists' });
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const searchDoctorCandidates = async (req, res) => {
+  try {
+    const search = String(req.query.search || '').trim();
+    const hospitalId = req.query.hospitalId;
+    const userFilter = { role: 'doctor' };
+
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
+      userFilter.$or = [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }];
+    }
+
+    if (hospitalId) {
+      const { error } = await getHospitalAndAuthorize(hospitalId, req.user);
+      if (error) {
+        return res.status(error.status).json({ message: error.message });
+      }
+    }
+
+    const users = await User.find(userFilter)
+      .select('name email phone profileImage isVerified')
+      .sort({ name: 1, email: 1 })
+      .limit(50);
+
+    const userIds = users.map((user) => user._id);
+    const profiles = await Doctor.find({ user: { $in: userIds } });
+    const profileByUserId = new Map(profiles.map((profile) => [String(profile.user), profile]));
+
+    let linkedDoctorIds = new Set();
+    if (hospitalId && profiles.length > 0) {
+      const links = await DoctorHospital.find({
+        hospital: hospitalId,
+        doctor: { $in: profiles.map((profile) => profile._id) },
+        isActive: true,
+      }).select('doctor');
+
+      linkedDoctorIds = new Set(links.map((link) => String(link.doctor)));
+    }
+
+    const doctors = users.map((user) => {
+      const profile = profileByUserId.get(String(user._id));
+
+      return {
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          profileImage: user.profileImage,
+          isVerified: user.isVerified,
+        },
+        profile: profile
+          ? {
+              id: profile._id,
+              specialty: profile.specialty,
+              licenseNumber: profile.licenseNumber,
+              experienceYears: profile.experienceYears,
+              consultationFee: profile.consultationFee,
+              maxDailyBookings: profile.maxDailyBookings,
+              bio: profile.bio,
+              isApproved: profile.isApproved,
+            }
+          : null,
+        isLinked: profile ? linkedDoctorIds.has(String(profile._id)) : false,
+      };
+    });
+
+    res.json({ doctors });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -86,20 +298,43 @@ const getHospitals = async (_req, res) => {
 
 const getHospitalDoctors = async (req, res) => {
   try {
-    const hospital = await Hospital.findById(req.params.hospitalId);
+    const hospital = await Hospital.findById(req.params.hospitalId).populate('adminUser', 'name email phone profileImage');
     if (!hospital || !hospital.isActive) {
       return res.status(404).json({ message: 'Hospital not found' });
     }
 
     const specialtyRegex = req.query.specialty
-      ? new RegExp(`^${req.query.specialty.trim()}$`, 'i')
+      ? new RegExp(`^${escapeRegex(req.query.specialty.trim())}$`, 'i')
       : null;
+    const search = String(req.query.search || '').trim();
+    let matchingDoctorUserIds = null;
+
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
+      const users = await User.find({
+        role: 'doctor',
+        $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }],
+      }).select('_id');
+      matchingDoctorUserIds = users.map((user) => user._id);
+
+      if (matchingDoctorUserIds.length === 0) {
+        return res.json({ hospital, doctors: [] });
+      }
+    }
+
+    const doctorMatch = { isApproved: true };
+    if (specialtyRegex) {
+      doctorMatch.specialty = specialtyRegex;
+    }
+    if (matchingDoctorUserIds) {
+      doctorMatch.user = { $in: matchingDoctorUserIds };
+    }
 
     const links = await DoctorHospital.find({ hospital: hospital._id, isActive: true })
       .populate({
         path: 'doctor',
-        match: specialtyRegex ? { isApproved: true, specialty: specialtyRegex } : { isApproved: true },
-        populate: { path: 'user', select: 'name email phone' },
+        match: doctorMatch,
+        populate: { path: 'user', select: 'name email phone profileImage' },
       })
       .sort({ createdAt: -1 });
 
@@ -108,6 +343,8 @@ const getHospitalDoctors = async (req, res) => {
       .map((link) => ({
         ...link.doctor.toObject(),
         maxDailyBookings: link.maxDailyBookings,
+        availableDates: getAvailableDates(link),
+        availabilitySlots: getAvailabilitySlots(link),
         doctorHospitalLinkId: link._id,
       }))
       .sort((a, b) => {
@@ -126,7 +363,7 @@ const getHospitalDoctors = async (req, res) => {
 const assignDoctorToHospital = async (req, res) => {
   try {
     const { hospitalId, doctorId } = req.params;
-    const { specialty, maxDailyBookings } = req.body;
+    const { specialty, maxDailyBookings, availableDates, availabilitySlots } = req.body;
 
     const { hospital, error } = await getHospitalAndAuthorize(hospitalId, req.user);
     if (error) {
@@ -147,6 +384,8 @@ const assignDoctorToHospital = async (req, res) => {
       doctorId: doctor._id,
       hospitalId: hospital._id,
       maxDailyBookings,
+      availableDates,
+      availabilitySlots,
     });
 
     res.json({
@@ -154,6 +393,8 @@ const assignDoctorToHospital = async (req, res) => {
       doctor,
       hospital,
       maxDailyBookings: link.maxDailyBookings,
+      availableDates: getAvailableDates(link),
+      availabilitySlots: getAvailabilitySlots(link),
       linkId: link._id,
     });
   } catch (err) {
@@ -166,6 +407,8 @@ const addDoctorToHospital = async (req, res) => {
     const { hospitalId } = req.params;
     const {
       doctorUserId,
+      doctorEmail,
+      email,
       specialty,
       licenseNumber,
       experienceYears,
@@ -173,6 +416,8 @@ const addDoctorToHospital = async (req, res) => {
       consultationFee,
       availability,
       maxDailyBookings,
+      availableDates,
+      availabilitySlots,
     } = req.body;
 
     const { hospital, error } = await getHospitalAndAuthorize(hospitalId, req.user);
@@ -180,16 +425,16 @@ const addDoctorToHospital = async (req, res) => {
       return res.status(error.status).json({ message: error.message });
     }
 
-    if (!doctorUserId) {
-      return res.status(400).json({ message: 'doctorUserId is required' });
+    if (!doctorUserId && !doctorEmail && !email) {
+      return res.status(400).json({ message: 'doctorEmail is required' });
     }
 
-    const user = await User.findById(doctorUserId);
+    const user = await getDoctorUserByIdentifier({ doctorUserId, doctorEmail, email });
     if (!user || user.role !== 'doctor') {
-      return res.status(400).json({ message: 'Valid doctor user is required' });
+      return res.status(400).json({ message: 'Valid doctor email is required' });
     }
 
-    let doctor = await Doctor.findOne({ user: doctorUserId });
+    let doctor = await Doctor.findOne({ user: user._id });
 
     if (!doctor) {
       if (!specialty || !licenseNumber) {
@@ -202,7 +447,7 @@ const addDoctorToHospital = async (req, res) => {
       }
 
       doctor = await Doctor.create({
-        user: doctorUserId,
+        user: user._id,
         specialty,
         licenseNumber,
         experienceYears,
@@ -225,6 +470,8 @@ const addDoctorToHospital = async (req, res) => {
       doctorId: doctor._id,
       hospitalId: hospital._id,
       maxDailyBookings,
+      availableDates,
+      availabilitySlots,
     });
 
     const populatedDoctor = await Doctor.findById(doctor._id).populate('user', 'name email phone');
@@ -234,6 +481,8 @@ const addDoctorToHospital = async (req, res) => {
       doctor: populatedDoctor,
       hospital,
       maxDailyBookings: link.maxDailyBookings,
+      availableDates: getAvailableDates(link),
+      availabilitySlots: getAvailabilitySlots(link),
       linkId: link._id,
     });
   } catch (err) {
@@ -256,6 +505,8 @@ const hireDoctor = async (req, res) => {
       consultationFee,
       availability,
       maxDailyBookings,
+      availableDates,
+      availabilitySlots,
     } = req.body;
 
     const { hospital, error } = await getHospitalAndAuthorize(hospitalId, req.user);
@@ -324,6 +575,8 @@ const hireDoctor = async (req, res) => {
       doctorId: doctor._id,
       hospitalId: hospital._id,
       maxDailyBookings,
+      availableDates,
+      availabilitySlots,
     });
 
     const populatedDoctor = await Doctor.findById(doctor._id).populate('user', 'name email phone');
@@ -333,6 +586,8 @@ const hireDoctor = async (req, res) => {
       hospital,
       doctor: populatedDoctor,
       maxDailyBookings: link.maxDailyBookings,
+      availableDates: getAvailableDates(link),
+      availabilitySlots: getAvailabilitySlots(link),
       linkId: link._id,
     });
   } catch (err) {
@@ -343,6 +598,9 @@ const hireDoctor = async (req, res) => {
 module.exports = {
   createHospital,
   getHospitals,
+  getMyHospitals,
+  updateHospital,
+  searchDoctorCandidates,
   getHospitalDoctors,
   assignDoctorToHospital,
   addDoctorToHospital,

@@ -4,26 +4,99 @@ const Hospital = require('../models/Hospital');
 const DoctorHospital = require('../models/DoctorHospital');
 
 const ACTIVE_BOOKING_STATUSES = ['pending', 'confirmed'];
+const DATE_KEY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+const APPOINTMENT_SLOT_MINUTES = 30;
+const APPOINTMENT_START_HOUR = 9;
+const APPOINTMENT_START_MINUTE = 0;
 
-const getQueueDate = (scheduledAt) => {
-  return new Date(scheduledAt).toISOString().slice(0, 10);
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const toPositiveLimit = (value, fallback = 10) => {
+  const limit = Number(value);
+  return Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : fallback;
 };
 
-const validateAppointmentInput = ({ scheduledAt, reason }) => {
-  if (!scheduledAt || !reason) {
-    return 'scheduledAt and reason are required';
+const getAvailabilitySlots = (link) => {
+  if (link?.availabilitySlots?.length > 0) {
+    return link.availabilitySlots.map((slot) => ({
+      date: slot.date,
+      maxDailyBookings: toPositiveLimit(slot.maxDailyBookings, link.maxDailyBookings),
+    }));
   }
 
-  const appointmentDate = new Date(scheduledAt);
-  if (Number.isNaN(appointmentDate.getTime())) {
-    return 'Invalid scheduledAt date';
+  const dates = Array.isArray(link?.availableDates) ? link.availableDates : [];
+  return dates
+    .filter((date) => DATE_KEY_REGEX.test(date))
+    .map((date) => ({
+      date,
+      maxDailyBookings: toPositiveLimit(link?.maxDailyBookings),
+    }));
+};
+
+const getAvailabilitySlot = (link, appointmentDate) => {
+  return getAvailabilitySlots(link).find((slot) => slot.date === appointmentDate);
+};
+
+const toDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayKey = () => toDateKey(new Date());
+
+const getQueueDate = ({ appointmentDate, scheduledAt }) => {
+  if (appointmentDate && DATE_KEY_REGEX.test(String(appointmentDate))) {
+    return String(appointmentDate);
   }
 
-  if (appointmentDate.getTime() <= Date.now()) {
-    return 'Appointment must be scheduled in the future';
+  if (!scheduledAt) {
+    return null;
   }
 
-  return null;
+  const date = new Date(scheduledAt);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return toDateKey(date);
+};
+
+const getScheduledAtForQueue = (queueDate, queueNumber) => {
+  const [year, month, day] = queueDate.split('-').map(Number);
+  const scheduledAt = new Date(year, month - 1, day, APPOINTMENT_START_HOUR, APPOINTMENT_START_MINUTE, 0, 0);
+  scheduledAt.setMinutes(scheduledAt.getMinutes() + (queueNumber - 1) * APPOINTMENT_SLOT_MINUTES);
+  return scheduledAt;
+};
+
+const getMinimumFutureQueueNumber = (queueDate) => {
+  const firstSlot = getScheduledAtForQueue(queueDate, 1);
+  const now = Date.now();
+
+  if (firstSlot.getTime() > now) {
+    return 1;
+  }
+
+  const elapsedMs = now - firstSlot.getTime();
+  return Math.floor(elapsedMs / (APPOINTMENT_SLOT_MINUTES * 60 * 1000)) + 2;
+};
+
+const validateAppointmentInput = ({ appointmentDate, scheduledAt, reason }) => {
+  if (!reason) {
+    return { error: 'reason is required' };
+  }
+
+  const queueDate = getQueueDate({ appointmentDate, scheduledAt });
+  if (!queueDate) {
+    return { error: 'appointmentDate is required in YYYY-MM-DD format' };
+  }
+
+  if (queueDate < getTodayKey()) {
+    return { error: 'Appointment date must be today or in the future' };
+  }
+
+  return { queueDate };
 };
 
 const getDoctorOrError = async (doctorId) => {
@@ -40,45 +113,73 @@ const getDoctorOrError = async (doctorId) => {
 };
 
 const getBookingSnapshot = async ({ doctorId, hospitalId, queueDate }) => {
+  const hospitalMatch = hospitalId ? hospitalId : { $exists: false };
   const filter = {
     doctor: doctorId,
+    hospitalId: hospitalMatch,
     queueDate,
     status: { $in: ACTIVE_BOOKING_STATUSES },
   };
 
-  if (hospitalId) {
-    filter.hospitalId = hospitalId;
-  }
-
   const [activeCount, latestAppointment] = await Promise.all([
     Appointment.countDocuments(filter),
-    Appointment.findOne({ doctor: doctorId, queueDate, hospitalId: hospitalId || { $exists: false } })
+    Appointment.findOne({ doctor: doctorId, hospitalId: hospitalMatch, queueDate })
       .sort({ queueNumber: -1 })
       .select('queueNumber'),
   ]);
 
+  const minimumFutureQueueNumber = getMinimumFutureQueueNumber(queueDate);
+
   return {
     activeCount,
-    nextQueueNumber: (latestAppointment?.queueNumber || 0) + 1,
+    nextQueueNumber: Math.max((latestAppointment?.queueNumber || 0) + 1, minimumFutureQueueNumber),
   };
 };
 
-const createAppointmentWithQueue = async ({ patientUserId, doctor, hospitalId, maxDailyBookings, scheduledAt, reason, notes }) => {
-  const queueDate = getQueueDate(scheduledAt);
+const getDoctorAvailabilityForDate = (link, appointmentDate) => {
+  const slots = getAvailabilitySlots(link);
+
+  if (slots.length === 0) {
+    return {
+      error: 'No availability dates are configured for this doctor in this hospital',
+    };
+  }
+
+  const slot = getAvailabilitySlot(link, appointmentDate);
+  if (!slot) {
+    return {
+      error: 'Doctor is not available at this hospital on the selected date',
+    };
+  }
+
+  return { slot };
+};
+
+const createAppointmentWithQueue = async ({
+  patientUserId,
+  doctor,
+  hospitalId,
+  maxDailyBookings,
+  queueDate,
+  reason,
+  notes,
+}) => {
   const { activeCount, nextQueueNumber } = await getBookingSnapshot({
     doctorId: doctor._id,
     hospitalId,
     queueDate,
   });
 
-  if (activeCount >= maxDailyBookings) {
+  if (activeCount >= maxDailyBookings || nextQueueNumber > maxDailyBookings) {
     return {
       error: {
         status: 400,
-        message: `Booking limit reached for this doctor. Max daily booking is ${maxDailyBookings}`,
+        message: `No appointment slots remain for this date. Max daily booking is ${maxDailyBookings}`,
       },
     };
   }
+
+  const scheduledAt = getScheduledAtForQueue(queueDate, nextQueueNumber);
 
   const appointment = await Appointment.create({
     patientUser: patientUserId,
@@ -104,8 +205,8 @@ const getHospitalDoctorLink = async ({ doctorId, hospitalId }) => {
 
 const bookAppointment = async (req, res) => {
   try {
-    const { doctorId, scheduledAt, reason, notes } = req.body;
-    const validationError = validateAppointmentInput({ scheduledAt, reason });
+    const { doctorId, appointmentDate, scheduledAt, reason, notes } = req.body;
+    const { queueDate, error: validationError } = validateAppointmentInput({ appointmentDate, scheduledAt, reason });
 
     if (validationError) {
       return res.status(400).json({ message: validationError });
@@ -114,7 +215,6 @@ const bookAppointment = async (req, res) => {
       return res.status(400).json({ message: 'doctorId is required' });
     }
 
-    const appointmentDate = new Date(scheduledAt);
     const { doctor, error } = await getDoctorOrError(doctorId);
 
     if (error) {
@@ -126,7 +226,7 @@ const bookAppointment = async (req, res) => {
       doctor,
       hospitalId: null,
       maxDailyBookings: doctor.maxDailyBookings,
-      scheduledAt: appointmentDate,
+      queueDate,
       reason,
       notes,
     });
@@ -140,6 +240,8 @@ const bookAppointment = async (req, res) => {
       appointment,
       queueNumber: appointment.queueNumber,
       queueDate: appointment.queueDate,
+      scheduledAt: appointment.scheduledAt,
+      slotMinutes: APPOINTMENT_SLOT_MINUTES,
       maxDailyBookings: doctor.maxDailyBookings,
     });
   } catch (err) {
@@ -152,13 +254,13 @@ const bookAppointment = async (req, res) => {
 
 const bookFromHospital = async (req, res) => {
   try {
-    const { hospitalId, doctorId, scheduledAt, reason, notes } = req.body;
+    const { hospitalId, doctorId, appointmentDate, scheduledAt, reason, notes } = req.body;
 
     if (!hospitalId) {
       return res.status(400).json({ message: 'hospitalId is required' });
     }
 
-    const validationError = validateAppointmentInput({ scheduledAt, reason });
+    const { queueDate, error: validationError } = validateAppointmentInput({ appointmentDate, scheduledAt, reason });
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
@@ -171,7 +273,6 @@ const bookFromHospital = async (req, res) => {
       return res.status(404).json({ message: 'Hospital not found' });
     }
 
-    const appointmentDate = new Date(scheduledAt);
     const { doctor, error } = await getDoctorOrError(doctorId);
 
     if (error) {
@@ -183,12 +284,17 @@ const bookFromHospital = async (req, res) => {
       return res.status(400).json({ message: 'Selected doctor is not hired by this hospital' });
     }
 
+    const { slot, error: availabilityError } = getDoctorAvailabilityForDate(link, queueDate);
+    if (availabilityError) {
+      return res.status(400).json({ message: availabilityError });
+    }
+
     const { appointment, error: bookingError } = await createAppointmentWithQueue({
       patientUserId: req.user.id,
       doctor,
       hospitalId: hospital._id,
-      maxDailyBookings: link.maxDailyBookings,
-      scheduledAt: appointmentDate,
+      maxDailyBookings: slot.maxDailyBookings,
+      queueDate,
       reason,
       notes,
     });
@@ -202,7 +308,9 @@ const bookFromHospital = async (req, res) => {
       appointment,
       queueNumber: appointment.queueNumber,
       queueDate: appointment.queueDate,
-      maxDailyBookings: link.maxDailyBookings,
+      scheduledAt: appointment.scheduledAt,
+      slotMinutes: APPOINTMENT_SLOT_MINUTES,
+      maxDailyBookings: slot.maxDailyBookings,
     });
   } catch (err) {
     if (err?.code === 11000) {
@@ -214,13 +322,13 @@ const bookFromHospital = async (req, res) => {
 
 const bookBySpecialty = async (req, res) => {
   try {
-    const { hospitalId, specialty, scheduledAt, reason, notes } = req.body;
+    const { hospitalId, specialty, appointmentDate, scheduledAt, reason, notes } = req.body;
 
     if (!hospitalId || !specialty) {
       return res.status(400).json({ message: 'hospitalId and specialty are required' });
     }
 
-    const validationError = validateAppointmentInput({ scheduledAt, reason });
+    const { queueDate, error: validationError } = validateAppointmentInput({ appointmentDate, scheduledAt, reason });
     if (validationError) {
       return res.status(400).json({ message: validationError });
     }
@@ -230,7 +338,7 @@ const bookBySpecialty = async (req, res) => {
       return res.status(404).json({ message: 'Hospital not found' });
     }
 
-    const specialtyRegex = new RegExp(`^${specialty.trim()}$`, 'i');
+    const specialtyRegex = new RegExp(`^${escapeRegex(specialty.trim())}$`, 'i');
 
     const doctors = await Doctor.find({ isApproved: true, specialty: specialtyRegex })
       .sort({ experienceYears: -1 })
@@ -244,6 +352,7 @@ const bookBySpecialty = async (req, res) => {
       hospital: hospital._id,
       doctor: { $in: doctors.map((doc) => doc._id) },
       isActive: true,
+      $or: [{ 'availabilitySlots.date': queueDate }, { availableDates: queueDate }],
     });
 
     if (links.length === 0) {
@@ -258,14 +367,18 @@ const bookBySpecialty = async (req, res) => {
     }
 
     const selectedLink = linkByDoctorId.get(String(selectedDoctor._id));
+    const { slot, error: availabilityError } = getDoctorAvailabilityForDate(selectedLink, queueDate);
+    if (availabilityError) {
+      return res.status(400).json({ message: availabilityError });
+    }
     const fullDoctor = await Doctor.findById(selectedDoctor._id);
 
     const { appointment, error: bookingError } = await createAppointmentWithQueue({
       patientUserId: req.user.id,
       doctor: fullDoctor,
       hospitalId: hospital._id,
-      maxDailyBookings: selectedLink.maxDailyBookings,
-      scheduledAt: new Date(scheduledAt),
+      maxDailyBookings: slot.maxDailyBookings,
+      queueDate,
       reason,
       notes,
     });
@@ -281,7 +394,9 @@ const bookBySpecialty = async (req, res) => {
       assignedDoctorSpecialty: fullDoctor.specialty,
       queueNumber: appointment.queueNumber,
       queueDate: appointment.queueDate,
-      maxDailyBookings: selectedLink.maxDailyBookings,
+      scheduledAt: appointment.scheduledAt,
+      slotMinutes: APPOINTMENT_SLOT_MINUTES,
+      maxDailyBookings: slot.maxDailyBookings,
     });
   } catch (err) {
     if (err?.code === 11000) {

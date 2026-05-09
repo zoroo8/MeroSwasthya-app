@@ -1,4 +1,78 @@
 const Doctor = require('../models/Doctor');
+const DoctorHospital = require('../models/DoctorHospital');
+const User = require('../models/User');
+
+const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const getDoctors = async (req, res) => {
+  try {
+    const search = String(req.query.search || '').trim();
+    const specialty = String(req.query.specialty || '').trim();
+    const hospitalId = req.query.hospitalId;
+    const filter = { isApproved: true };
+
+    if (specialty) {
+      filter.specialty = new RegExp(escapeRegex(specialty), 'i');
+    }
+
+    if (hospitalId) {
+      const links = await DoctorHospital.find({ hospital: hospitalId, isActive: true }).select('doctor');
+      filter._id = { $in: links.map((link) => link.doctor) };
+    }
+
+    if (search) {
+      const searchRegex = new RegExp(escapeRegex(search), 'i');
+      const users = await User.find({
+        role: 'doctor',
+        $or: [{ name: searchRegex }, { email: searchRegex }, { phone: searchRegex }],
+      }).select('_id');
+
+      filter.$or = [
+        { specialty: searchRegex },
+        { licenseNumber: searchRegex },
+        { user: { $in: users.map((user) => user._id) } },
+      ];
+    }
+
+    const doctors = await Doctor.find(filter)
+      .populate('user', 'name email phone profileImage')
+      .sort({ specialty: 1, experienceYears: -1 });
+
+    const links = await DoctorHospital.find({
+      doctor: { $in: doctors.map((doctor) => doctor._id) },
+      isActive: true,
+    }).populate('hospital', 'name address phone email bannerImage');
+
+    const hospitalByDoctorId = new Map();
+    links.forEach((link) => {
+      const key = String(link.doctor);
+      const current = hospitalByDoctorId.get(key) || [];
+      if (link.hospital) {
+        current.push({
+          id: link.hospital._id,
+          name: link.hospital.name,
+          address: link.hospital.address,
+          phone: link.hospital.phone,
+          email: link.hospital.email,
+          bannerImage: link.hospital.bannerImage,
+          availabilitySlots: link.availabilitySlots,
+          availableDates: link.availableDates,
+          maxDailyBookings: link.maxDailyBookings,
+        });
+      }
+      hospitalByDoctorId.set(key, current);
+    });
+
+    res.json({
+      doctors: doctors.map((doctor) => ({
+        ...doctor.toObject(),
+        hospitals: hospitalByDoctorId.get(String(doctor._id)) || [],
+      })),
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
 
 const createProfile = async (req, res) => {
   try {
@@ -105,6 +179,7 @@ const approveDoctor = async (req, res) => {
 };
 
 module.exports = {
+  getDoctors,
   createProfile,
   getMyProfile,
   updateMyProfile,

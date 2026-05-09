@@ -21,6 +21,10 @@ const hospitalSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
+    bannerImage: {
+      type: String,
+      trim: true,
+    },
     adminUser: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',

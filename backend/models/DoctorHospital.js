@@ -18,6 +18,26 @@ const doctorHospitalSchema = new mongoose.Schema(
       min: 1,
       default: 10,
     },
+    availableDates: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
+    availabilitySlots: [
+      {
+        date: {
+          type: String,
+          required: true,
+          trim: true,
+        },
+        maxDailyBookings: {
+          type: Number,
+          required: true,
+          min: 1,
+        },
+      },
+    ],
     isActive: {
       type: Boolean,
       default: true,

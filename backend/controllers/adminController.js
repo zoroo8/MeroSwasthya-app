@@ -2,9 +2,31 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Hospital = require('../models/Hospital');
 
+const getStats = async (_req, res) => {
+  try {
+    const [totalUsers, patients, doctors, hospitals] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: 'patient' }),
+      User.countDocuments({ role: 'doctor' }),
+      Hospital.countDocuments({ isActive: true }),
+    ]);
+
+    res.json({
+      stats: {
+        totalUsers,
+        patients,
+        doctors,
+        hospitals,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 const createUser = async (req, res) => {
   try {
-    const { name, email, password, role, phone, isVerified } = req.body;
+    const { name, email, password, role, phone, profileImage, isVerified } = req.body;
 
     if (!name || !email || !password || !role) {
       return res.status(400).json({ message: 'name, email, password and role are required' });
@@ -29,6 +51,7 @@ const createUser = async (req, res) => {
       password: hashedPassword,
       role,
       phone,
+      profileImage,
       isVerified: typeof isVerified === 'boolean' ? isVerified : true,
     });
 
@@ -40,6 +63,7 @@ const createUser = async (req, res) => {
         email: user.email,
         role: user.role,
         phone: user.phone,
+        profileImage: user.profileImage,
         isVerified: user.isVerified,
       },
     });
@@ -50,7 +74,7 @@ const createUser = async (req, res) => {
 
 const createHospitalWithAdmin = async (req, res) => {
   try {
-    const { name, address, phone, email, hospitalAdminUserId } = req.body;
+    const { name, address, phone, email, bannerImage, hospitalAdminUserId } = req.body;
 
     if (!name || !hospitalAdminUserId) {
       return res.status(400).json({ message: 'name and hospitalAdminUserId are required' });
@@ -71,6 +95,7 @@ const createHospitalWithAdmin = async (req, res) => {
       address,
       phone,
       email,
+      bannerImage,
       adminUser: adminUser._id,
     });
 
@@ -81,6 +106,7 @@ const createHospitalWithAdmin = async (req, res) => {
 };
 
 module.exports = {
+  getStats,
   createUser,
   createHospitalWithAdmin,
 };

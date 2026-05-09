@@ -1,12 +1,12 @@
 const DASHBOARD_BY_ROLE = {
-  patient: '/dashboard/patient',
-  doctor: '/dashboard/doctor',
-  admin: '/dashboard/admin',
-  hospital: '/dashboard/hospital',
+  patient: '/app',
+  doctor: '/app',
+  admin: '/app',
+  hospital: '/app',
 };
 
 function getDashboardPathByRole(role) {
-  return DASHBOARD_BY_ROLE[role] || '/dashboard/patient';
+  return DASHBOARD_BY_ROLE[role] || '/app';
 }
 
 module.exports = {

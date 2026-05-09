@@ -1,6 +1,9 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const fs = require('fs');
+const path = require('path');
 const User = require('../models/User');
+const { profileImageDir } = require('../middleware/uploadMiddleware');
 const { getDashboardPathByRole } = require('../utils/dashboardByRole');
 const { isEmailServiceConfigured, sendOtpEmail } = require('../utils/emailService');
 
@@ -14,23 +17,41 @@ const createToken = (user) => {
   return jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '7d' });
 };
 
+const toAuthUser = (user) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  phone: user.phone,
+  profileImage: user.profileImage,
+  isVerified: user.isVerified,
+});
+
 const buildAuthResponse = (user, token, message) => {
   return {
     message,
     token,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    user: toAuthUser(user),
     redirectTo: getDashboardPathByRole(user.role),
   };
 };
 
+const deleteLocalProfileImage = (profileImage) => {
+  if (!profileImage || !profileImage.startsWith('/uploads/profile-images/')) {
+    return;
+  }
+
+  const filePath = path.join(profileImageDir, path.basename(profileImage));
+  fs.unlink(filePath, (err) => {
+    if (err && err.code !== 'ENOENT') {
+      console.error('Failed to delete profile image', err.message);
+    }
+  });
+};
+
 const register = async (req, res) => {
   try {
-    const { name, email, password, role } = req.body;
+    const { name, email, password, role, phone, profileImage } = req.body;
 
     if (!isEmailServiceConfigured()) {
       return res.status(500).json({ message: getEmailNotConfiguredMessage() });
@@ -67,6 +88,8 @@ const register = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role: selectedRole,
+      phone,
+      profileImage,
     });
 
     const verificationOtp = generateOtp();
@@ -88,6 +111,8 @@ const register = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
+        phone: user.phone,
+        profileImage: user.profileImage,
         isVerified: user.isVerified,
       },
     });
@@ -303,6 +328,48 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+const updateProfileImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'Profile image is required' });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      deleteLocalProfileImage(`/uploads/profile-images/${req.file.filename}`);
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    deleteLocalProfileImage(user.profileImage);
+    user.profileImage = `/uploads/profile-images/${req.file.filename}`;
+    await user.save();
+
+    res.json({ message: 'Profile image updated successfully', user: toAuthUser(user) });
+  } catch (err) {
+    if (req.file) {
+      deleteLocalProfileImage(`/uploads/profile-images/${req.file.filename}`);
+    }
+    res.status(500).json({ message: err.message });
+  }
+};
+
+const deleteProfileImage = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    deleteLocalProfileImage(user.profileImage);
+    user.profileImage = undefined;
+    await user.save();
+
+    res.json({ message: 'Profile image deleted successfully', user: toAuthUser(user) });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 const patientDashboard = (req, res) => res.json({ message: 'Patient dashboard access granted', role: req.user.role });
 const doctorDashboard = (req, res) => res.json({ message: 'Doctor dashboard access granted', role: req.user.role });
 const adminDashboard = (req, res) => res.json({ message: 'Admin dashboard access granted', role: req.user.role });
@@ -316,6 +383,8 @@ module.exports = {
   forgotPassword,
   resetPassword,
   getCurrentUser,
+  updateProfileImage,
+  deleteProfileImage,
   patientDashboard,
   doctorDashboard,
   adminDashboard,
