@@ -1,44 +1,48 @@
-const nodemailer = require('nodemailer');
+const nodemailer = require("nodemailer");
 
 const isEmailServiceConfigured = () => {
   return Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 };
 
+const getEmailPassword = () => {
+  return (process.env.EMAIL_PASS || "").replace(/\s/g, "");
+};
+
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: 'gmail',
+    service: "gmail",
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      pass: getEmailPassword(),
     },
   });
 };
 
 const getSubjectByPurpose = (purpose) => {
-  if (purpose === 'reset') {
-    return 'MeroSwasthya Password Reset OTP';
+  if (purpose === "reset") {
+    return "MeroSwasthya Password Reset OTP";
   }
 
-  return 'MeroSwasthya Account Verification OTP';
+  return "MeroSwasthya Account Verification OTP";
 };
 
 const getMessageByPurpose = (purpose, otp, name) => {
-  if (purpose === 'reset') {
+  if (purpose === "reset") {
     return {
-      text: `Hello ${name || 'User'}, your password reset OTP is ${otp}. It expires in 10 minutes.`,
-      html: `<p>Hello ${name || 'User'},</p><p>Your password reset OTP is <b>${otp}</b>.</p><p>This OTP expires in 10 minutes.</p>`,
+      text: `Hello ${name || "User"}, your password reset OTP is ${otp}. It expires in 10 minutes.`,
+      html: `<p>Hello ${name || "User"},</p><p>Your password reset OTP is <b>${otp}</b>.</p><p>This OTP expires in 10 minutes.</p>`,
     };
   }
 
   return {
-    text: `Hello ${name || 'User'}, your account verification OTP is ${otp}. It expires in 10 minutes.`,
-    html: `<p>Hello ${name || 'User'},</p><p>Your account verification OTP is <b>${otp}</b>.</p><p>This OTP expires in 10 minutes.</p>`,
+    text: `Hello ${name || "User"}, your account verification OTP is ${otp}. It expires in 10 minutes.`,
+    html: `<p>Hello ${name || "User"},</p><p>Your account verification OTP is <b>${otp}</b>.</p><p>This OTP expires in 10 minutes.</p>`,
   };
 };
 
-const sendOtpEmail = async ({ to, otp, purpose = 'verification', name }) => {
+const sendOtpEmail = async ({ to, otp, purpose = "verification", name }) => {
   if (!isEmailServiceConfigured()) {
-    throw new Error('Email service is not configured');
+    throw new Error("Email service is not configured");
   }
 
   const transporter = createTransporter();
